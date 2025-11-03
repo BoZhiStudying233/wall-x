@@ -19,6 +19,7 @@ from wall_x.data.utils import (
 from transformers import AutoProcessor
 from .utils import load_norm_stats, KEY_MAPPINGS
 
+import re
 T_co = TypeVar("T_co", covariant=True)
 
 
@@ -126,7 +127,13 @@ class PreprocessedDataset(Dataset[T_co]):
         agent_pos = data[self._state_key_mapping["state"]]
         action = data[self._action_key_mapping["action"]]
         frame_index = data["frame_index"]
+        data["task"], catch_target, put_target = self.parse_task(data["task"])
+
         instruction_info = {"instruction": data["task"]}
+        if data["grasp"] == True:
+            target_name = put_target
+        else:
+            target_name = catch_target
         generate_subtask_ratio = self.data_config.generate_subtask_ratio
         complete_text, generate_subtask = get_wallx_normal_text(
             instruction_info,
@@ -135,6 +142,9 @@ class PreprocessedDataset(Dataset[T_co]):
             self.data_config.priority_order,
             self._cam_key_mapping,
             generate_subtask_ratio=generate_subtask_ratio,
+            target_name=target_name,
+            bbox = data["bbox"],
+            grasp=data["grasp"],
         )
         text = process_grounding_points(
             complete_text, h, w, resize_h, resize_w, self.data_config.model_type
@@ -177,7 +187,7 @@ class PreprocessedDataset(Dataset[T_co]):
             self,
             num_replicas=self.world_size,
             rank=self.rank,
-            shuffle=True,
+            shuffle=False,
             seed=self.seed,
             drop_last=True,  # Ensure all processes have same number of batches
         )
@@ -233,6 +243,17 @@ class PreprocessedDataset(Dataset[T_co]):
         )
 
         return dataloader, sampler
+    def parse_task(self, task_str):
+        # 匹配英文格式：Catch: xxx. Put: yyy
+        match = re.search(r"(.*)Catch:\s*(.*)\.\s*Put:\s*(.*)", task_str)
+        if match:
+            instruction = match.group(1).strip()
+            catch_target = match.group(2).strip()
+            put_target = match.group(3).strip()
+            return instruction, catch_target, put_target
+        else:
+            # 格式不匹配时返回空字符串
+            return "", "", ""
 
 
 class DataCollator:
@@ -323,29 +344,29 @@ class DataCollator:
                 agent_pos = self._normalize(
                     agent_pos, self.state_min_stat, self.state_delta
                 )
-                if agent_pos.shape[-1] != 20:
-                    agent_pos = torch.cat(
-                        [
-                            agent_pos,
-                            torch.zeros(
-                                agent_pos.shape[0],
-                                agent_pos.shape[1],
-                                20 - agent_pos.shape[-1],
-                            ),
-                        ],
-                        dim=-1,
-                    )
-                    agent_pos_mask = torch.cat(
-                        [
-                            agent_pos_mask,
-                            torch.zeros(
-                                agent_pos_mask.shape[0],
-                                agent_pos_mask.shape[1],
-                                20 - agent_pos_mask.shape[-1],
-                            ),
-                        ],
-                        dim=-1,
-                    )
+                # if agent_pos.shape[-1] != 20:
+                #     agent_pos = torch.cat(
+                #         [
+                #             agent_pos,
+                #             torch.zeros(
+                #                 agent_pos.shape[0],
+                #                 agent_pos.shape[1],
+                #                 20 - agent_pos.shape[-1],
+                #             ),
+                #         ],
+                #         dim=-1,
+                #     )
+                #     agent_pos_mask = torch.cat(
+                #         [
+                #             agent_pos_mask,
+                #             torch.zeros(
+                #                 agent_pos_mask.shape[0],
+                #                 agent_pos_mask.shape[1],
+                #                 20 - agent_pos_mask.shape[-1],
+                #             ),
+                #         ],
+                #         dim=-1,
+                #     )
                 additional_inputs["proprioception"] = agent_pos
                 additional_inputs["agent_pos_mask"] = agent_pos_mask
             elif key == "action":
@@ -357,27 +378,27 @@ class DataCollator:
                 action = self._normalize(
                     action, self.action_min_stat, self.action_delta
                 )
-                if action.shape[-1] != 20:
-                    action = torch.cat(
-                        [
-                            action,
-                            torch.zeros(
-                                action.shape[0], action.shape[1], 20 - action.shape[-1]
-                            ),
-                        ],
-                        dim=-1,
-                    )
-                    dof_mask = torch.cat(
-                        [
-                            dof_mask,
-                            torch.zeros(
-                                dof_mask.shape[0],
-                                dof_mask.shape[1],
-                                20 - dof_mask.shape[-1],
-                            ),
-                        ],
-                        dim=-1,
-                    )
+                # if action.shape[-1] != 20:
+                #     action = torch.cat(
+                #         [
+                #             action,
+                #             torch.zeros(
+                #                 action.shape[0], action.shape[1], 20 - action.shape[-1]
+                #             ),
+                #         ],
+                #         dim=-1,
+                #     )
+                #     dof_mask = torch.cat(
+                #         [
+                #             dof_mask,
+                #             torch.zeros(
+                #                 dof_mask.shape[0],
+                #                 dof_mask.shape[1],
+                #                 20 - dof_mask.shape[-1],
+                #             ),
+                #         ],
+                #         dim=-1,
+                #     )
                 additional_inputs["action_chunk"] = action
                 additional_inputs["dof_mask"] = dof_mask
             elif key == "image_inputs":
@@ -478,7 +499,8 @@ def load_lerobot_data(
     batch_size = config.get("batch_size_per_gpu", 8)
     episodes = np.arange(episodes_num).tolist()
 
-    train_test_split = dataload_config.get("train_test_split", 0.95)
+    train_test_split = dataload_config.get("train_test_split", 1)
+    train_test_split = 1
     train_episodes = episodes[: int(episodes_num * train_test_split)]
     test_episodes = episodes[int(episodes_num * train_test_split) :]
 

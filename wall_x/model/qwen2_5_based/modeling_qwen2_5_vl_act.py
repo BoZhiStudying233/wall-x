@@ -810,7 +810,8 @@ class Qwen2_5_VLMoEForAction(Qwen2_5_VLForConditionalGeneration):
         action_statistic_dof[name] = stats_dict
 
         print("Customized robot config added")
-        pprint(action_statistic_dof)
+        print("name:",name)
+        pprint(action_statistic_dof[name])
 
     @classmethod
     def from_pretrained(
@@ -903,8 +904,10 @@ class Qwen2_5_VLMoEForAction(Qwen2_5_VLForConditionalGeneration):
             action_mapper: Action mapping utility
             flow_loss_weight (float): Weight for flow loss computation
         """
+        print("start init model")
+        print("config:",config)
         super().__init__(config)
-
+        print("init finish")
         # Initialize vision transformer and language model components
         self.visual = Qwen2_5_VisionTransformerPretrainedModel._from_config(
             config.vision_config

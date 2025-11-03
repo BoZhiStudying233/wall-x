@@ -4,11 +4,11 @@
 log_name: "robotic_training"
 log_project: "vla_training"
 model_type: qwen2_5
-pretrained_wallx_path: "/path/to/wallx_model/"  # Must set
-save_path: "/path/to/workspace/"                # Must set
+pretrained_wallx_path: "/inspire/hdd/global_user/konghanlin-253108540238/VLA_pt/Qwen2.5-VL-3B-Instruct"  # Must set
+save_path: "/inspire/hdd/global_user/konghanlin-253108540238/wall-x-pt"                # Must set
 use_fast_tokenizer: True                       # True: train FAST, False: train Flow
-action_tokenizer_path: "/path/to/fast/"         # Must set if use_fast_tokenizer is true
-qwen_vl_act_config_path: "wall-x/workspace/lerobot_example/qwen25_config.json"
+action_tokenizer_path: "/inspire/hdd/global_user/konghanlin-253108540238/fast_tokenizer"         # Must set if use_fast_tokenizer is true
+qwen_vl_act_config_path: "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/workspace/lerobot_example/aloha_mobile_cabinet/qwen25_config.json"
 
 
 # Torch Profile
@@ -25,7 +25,7 @@ learning_rate: 0.00009
 min_lr: 0.00005
 num_epoch: 100
 gradient_accumulation_steps: 1
-batch_size_per_gpu: 8
+batch_size_per_gpu: 1
 padding_side: left
 epoch_save_interval: 10
 
@@ -62,40 +62,36 @@ agent_pos_config:
 #   ckpt: "/path/to/resume_model/"
 #   load_ckpt_only: true
 
-norm_stats_path: "/path/to/norm_stats.json"
+norm_stats_path: "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/workspace/lerobot_example/aloha_mobile_cabinet/norm_stats.json"
 
 enable_customized_robot_config: true
 customized_robot_config:
-  name: "physical-intelligence/libero"
+  name: "lerobot/aloha_mobile_cabinet"
   customized_dof_config:
-    "action_left_shoulder" : 1
-    "action_left_elbow" : 1
-    "action_left_forearm_roll" : 1
-    "action_left_wrist_angle" : 1
-    "action_left_wrist_rotate" : 1
-    "action_left_gripper" : 1
-    "action_right_waist" : 1
-    "action_right_shoulder" : 1
-    "action_right_elbow" : 1
-    "action_right_forearm_roll" : 1
-    "action_right_wrist_angle" : 1
-    "action_right_wrist_rotate" : 1
-    "action_right_gripper" : 1
+    follow_left_ee_cartesian_pos: 3      # Left end-effector Cartesian position
+    follow_left_ee_rotation: 3           # Left end-effector rotation
+    follow_left_gripper: 1               # Left gripper control
+    follow_right_ee_cartesian_pos: 3     # Right end-effector Cartesian position
+    follow_right_ee_rotation: 3          # Right end-effector rotation
+    follow_right_gripper: 1              # Right gripper control
+    head_actions: 2                      # Head/camera movement
+    height: 1                            # Mobile base height control
+    car_pose: 3                          # Mobile base pose (x, y, theta)
 
+  # customized_agent_pos_config:
+  # Agent proprioception configuration (typically matches DOF config)
+  
   customized_agent_pos_config:
-    "state_left_shoulder" : 1
-    "state_left_elbow" : 1
-    "state_left_forearm_roll" : 1
-    "state_left_wrist_angle" : 1
-    "state_left_wrist_rotate" : 1
-    "state_left_gripper" : 1
-    "state_right_waist" : 1
-    "state_right_shoulder" : 1
-    "state_right_elbow" : 1
-    "state_right_forearm_roll" : 1
-    "state_right_wrist_angle" : 1
-    "state_right_wrist_rotate" : 1
-    "state_right_gripper" : 1
+    follow_left_ee_cartesian_pos: 3
+    follow_left_ee_rotation: 3
+    follow_left_gripper: 1
+    follow_right_ee_cartesian_pos: 3
+    follow_right_ee_rotation: 3
+    follow_right_gripper: 1
+    head_actions: 2
+    height: 1
+    car_pose: 3
+
 
 # Data configuration
 data:

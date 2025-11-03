@@ -37,6 +37,7 @@ class RunningStats:
         """
         batch = batch.reshape(-1, batch.shape[-1])
         num_elements, vector_length = batch.shape
+        # print("num_elements:", num_elements)
         if self._count == 0:
             self._mean = np.mean(batch, axis=0)
             self._mean_of_squares = np.mean(batch**2, axis=0)
@@ -88,6 +89,7 @@ class RunningStats:
         Returns:
             dict: A dictionary containing the computed statistics.
         """
+        print("_count:", self._count)
         if self._count < 2:
             raise ValueError("Cannot compute statistics for less than 2 vectors.")
 

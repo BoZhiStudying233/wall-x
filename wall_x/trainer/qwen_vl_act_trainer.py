@@ -148,7 +148,8 @@ class QwenVlAct_Trainer:
 
         # Load model and initialize training components
         self.load_model()
-        self.action_dim = sum(self.config["dof_config"].values())
+        self.action_dim = sum(self.config['customized_robot_config']['customized_dof_config'].values())
+
 
         # Distributed training setup
         self.rank = self.accelerator.process_index
@@ -572,8 +573,8 @@ class QwenVlAct_Trainer:
             customized_agent_pos_config = self.config["customized_robot_config"][
                 "customized_agent_pos_config"
             ]
-            setattr(config, "customized_dof_config", customized_dof_config)
-            setattr(config, "customized_agent_pos_config", customized_agent_pos_config)
+            setattr(config, "dof_config", customized_dof_config)
+            setattr(config, "agent_pos_config", customized_agent_pos_config)
 
             model = Qwen2_5_VLMoEForAction(
                 config,

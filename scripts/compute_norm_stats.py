@@ -1,3 +1,8 @@
+import sys
+import os
+sys.path.insert(0, "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx")
+os.environ["LEROBOT_VIDEO_BACKEND"] = "opencv"  # 必须放在 import lerobot 之前
+
 import yaml
 import torch
 import tqdm
@@ -6,6 +11,7 @@ from wall_x.data.load_lerobot_dataset import KEY_MAPPINGS
 import normalize
 import numpy as np
 import argparse
+
 
 
 def load_config(config_path):
@@ -22,6 +28,7 @@ def load_lerobot_dataset(repo_id, action_horizon, args):
     dataset_meta = LeRobotDatasetMetadata(repo_id)
     dataset = LeRobotDataset(
         repo_id,
+        video_backend="pyav",
         delta_timestamps={
             key: [t / dataset_meta.fps for t in range(action_horizon)]
             for key in [KEY_MAPPINGS[repo_id]["action"]]
@@ -46,19 +53,20 @@ if __name__ == "__main__":
     # set args
     parser = argparse.ArgumentParser()
     parser.add_argument("--batch_size", type=int, default=256)
-    parser.add_argument("--num_workers", type=int, default=2)
+    parser.add_argument("--num_workers", type=int, default=8)
     parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()
 
     # Configs
-    path = "/path/to/config.yml"
-    output_path = "/path/to/output"
+    path = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/workspace/lerobot_example/UAV_large/config_qact_from_vlm.yml"
+    output_path = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/workspace/lerobot_example/UAV_large"
     config = load_config(path)
     lerobot_config = config["data"]["lerobot_config"]
     repo_id = lerobot_config.get("repo_id", None)
     assert repo_id is not None, "repo id is required"
     action_horizon = config["data"].get("action_horizon", 32)
 
+    print("repo_id:", repo_id)
     data_loader, num_batches = load_lerobot_dataset(repo_id, action_horizon, args)
 
     keys = ["state", "action"]

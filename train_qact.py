@@ -97,6 +97,7 @@ def setup_logging(config, accelerator):
         project=config["log_project"],
         name=config["log_name"],
         save_code=False,
+        mode="offline",
         force=False,
     )
 

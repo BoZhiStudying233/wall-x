@@ -37,7 +37,7 @@ class Normalizer(nn.Module):
 
         action_statistic = {}
         # hard code the action dimension to 20
-        action_dim = 20
+        action_dim = 20#
 
         # Process statistics for each robot
         for robot_name in action_statistic_dof.keys():
@@ -140,6 +140,9 @@ class Normalizer(nn.Module):
             # Apply DOF mask if provided
             if mask is not None:
                 mask = mask[0].bool()
+                mask = torch.tensor([True, True, True, True, True, True, True,  # 前7维
+                     False, False, False, False, False, False, False, False, False, False, False, False, False])  # 后13维
+
                 action_space_delta = self.delta[dataset_name][mask]
                 action_space_min = self.min[dataset_name][mask]
             else:
@@ -256,7 +259,7 @@ class ActionProcessor(nn.Module):
         )
 
         # Proprioception projection layer (includes history/current state)
-        self.propri_proj = nn.Linear(self.propri_dim * 2, self.hidden_size, bias=False)
+        self.propri_proj = nn.Linear(self.propri_dim * 2, self.hidden_size, bias=False)#
 
         # Beta distribution noise scheduler configuration
         noise_scheduler_config = config.noise_scheduler
@@ -341,6 +344,9 @@ class ActionProcessor(nn.Module):
         proprioception = proprioception.to(device=self.propri_proj.weight.device).to(
             dtype=self.propri_proj.weight.dtype
         )
+        # print("proprioception shape:", proprioception.shape)
+        # print("propri_proj weight shape:", self.propri_proj.weight.shape)
+
         return self.propri_proj(proprioception)
 
     def forward(self, action_chunk, dataset_names, dof_mask=None):

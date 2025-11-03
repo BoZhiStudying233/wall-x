@@ -38,6 +38,13 @@ ACTION_DATASET_NAMES = [
     "viola",
     "physical-intelligence/libero",
     "lerobot/aloha_mobile_cabinet",
+    "dzb/our_small_data_old",
+    "dzb/our_small_data",
+    "dzb/our_data_old",
+    "dzb/our_data_old_train",
+    "dzb/our_data_old_test",
+    "dzb/our_data_test",
+    "dzb/our_data_train"
 ]
 
 # Supported multimodal datasets

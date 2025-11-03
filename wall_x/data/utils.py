@@ -32,6 +32,34 @@ KEY_MAPPINGS = {
         "state": "state",
         "action": "actions",
     },
+    "dzb/our_small_data_old": {
+        "camera": {
+            "video.front": "face_view",    
+        },
+        "state": "state",
+        "action": "action"
+    },
+    "dzb/our_data_old": {
+        "camera": {
+            "video.front": "face_view",    
+        },
+        "state": "state",
+        "action": "action"
+    },
+    "dzb/our_data_test": {
+        "camera": {
+            "video.front": "face_view",    
+        },
+        "state": "state",
+        "action": "action"
+    },
+    "dzb/our_data_train": {
+        "camera": {
+            "video.front": "face_view",    
+        },
+        "state": "state",
+        "action": "action"
+    }
 }
 
 CAMERA_NAME_MAPPING = {
@@ -439,6 +467,9 @@ def get_wallx_normal_text(
     priority_order: Optional[OrderedDict] = None,
     cam_mapping: Optional[Dict[str, str]] = None,
     generate_subtask_ratio: float = 0.0,
+    target_name = None,
+    bbox = None,
+    grasp = None
 ) -> Tuple[str, bool]:
     """Construct complete multimodal prompt text for Wall-X model.
 
@@ -492,35 +523,40 @@ def get_wallx_normal_text(
     priority_keys = ["subtask_generation", "distribute"]
 
     # Decide whether to generate subtask or actions
-    if (
-        bool(set(frame_instruction_info.keys()) & set(priority_keys))
-        and random.random() < generate_subtask_ratio
-    ):
+    # if (
+    #     bool(set(frame_instruction_info.keys()) & set(priority_keys))
+    #     and random.random() < generate_subtask_ratio
+    # ):
+    grasp_state = (
+        "now you have already grasped the object"
+        if grasp
+        else "now you have not grasped the object yet"
+    )
+    if bbox is not None:
+        bbox = [int(x) for x in bbox.tolist()]
+    if (bbox is not None) and (not all(v == 0 for v in bbox)):
+        # print("预测bbox了!!!!")
+        generate_subtask = True
         # Generate subtask (equivalent to VQA task)
         instruction = frame_instruction_info.get("instruction", "")
-        text_prompt = "\nPredict the next action in language.\n"
+        text_prompt = f"\nYou are performing a robotic manipulation task, {grasp_state}. If you believe the robot can now **grasp or place** the object, identify the {target_name} in the **front view** and output its bounding box in the format **[x1, y1, x2, y2]**. If you believe the robot still needs to **move closer to the target**, then **predict the robot's next actions**. \n"
         user_message = f"{user_request} {instruction}{text_prompt}{role_end_symbol}\n"
 
-        # Find output instruction from priority keys
-        for key in priority_keys:
-            if key in frame_instruction_info:
-                output_instruction = frame_instruction_info[key]
-                break
-
         assistant_output = (
-            f"{role_start_symbol}assistant\n{output_instruction}\n{role_end_symbol}"
+            f"{role_start_symbol}assistant\nBounding box:\n<point>{bbox}</point>\n{role_end_symbol}"
         )
         generate_subtask = True
     else:
         # Generate actions
-        instruction = get_task_instruction(
+        instruction = get_task_instruction(#读的instruction
             frame_instruction_info, priority_order=priority_order
         )
-        text_prompt = f"\nPredict the next action in robot action.\nProprioception: {propri_symbol}\n"
+        text_prompt = f"\nYou are performing a robotic manipulation task, {grasp_state}. If you believe the robot can now **grasp or place** the object, identify the {target_name} in the **front view** and output its bounding box in the format **[x1, y1, x2, y2]**. If you believe the robot still needs to **move closer to the target**, then **predict the robot's next actions**. \n"
         user_message = f"{user_request} {instruction}{text_prompt}{role_end_symbol}\n"
         assistant_output = f"{role_start_symbol}assistant\n{action_fast_symbol}{role_end_symbol}\n{action_symbol * action_chunk_size}"
 
     complete_text = prologue + user_message + assistant_output
+    
     return complete_text, generate_subtask
 
 

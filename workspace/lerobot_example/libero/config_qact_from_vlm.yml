@@ -6,11 +6,11 @@ log_name: "opensource_training"
 log_project: "libero"
 model_type: qwen2_5
 use_fast_tokenizer: true
-pretrained_wallx_path: "/path/to/qwen/"
-action_tokenizer_path: "/path/to/fast/"
-qwen_vl_act_config_path: "/path/to/qwen25_config.json"
+pretrained_wallx_path: "/inspire/hdd/global_user/konghanlin-253108540238/VLA_pt/Qwen2.5-VL-3B-Instruct"
+action_tokenizer_path: "/inspire/hdd/global_user/konghanlin-253108540238/fast_tokenizer"
+qwen_vl_act_config_path: "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/workspace/lerobot_example/qwen25_config.json"
 
-save_path: "/path/to/save"
+save_path: "/inspire/hdd/global_user/konghanlin-253108540238/wall-x-pt"
 # Torch Profile
 profile: False
 profile_save_path: /path/to/profile/
@@ -25,35 +25,11 @@ learning_rate: 0.00005
 min_lr: 0.00005
 num_epoch: 100
 gradient_accumulation_steps: 1
-batch_size_per_gpu: 8
+batch_size_per_gpu: 1
 padding_side: left
 epoch_save_interval: 1
 
-# Robot configuration - Define degrees of freedom for each component
-dof_config:
-  follow_left_ee_cartesian_pos: 3      # Left end-effector Cartesian position
-  follow_left_ee_rotation: 3           # Left end-effector rotation
-  follow_left_gripper: 1               # Left gripper control
-  follow_right_ee_cartesian_pos: 3     # Right end-effector Cartesian position
-  follow_right_ee_rotation: 3          # Right end-effector rotation
-  follow_right_gripper: 1              # Right gripper control
-  head_actions: 2                      # Head/camera movement
-  height: 1                            # Mobile base height control
-  car_pose: 3                          # Mobile base pose (x, y, theta)
-
-# Agent proprioception configuration (typically matches DOF config)
-agent_pos_config:
-  follow_left_ee_cartesian_pos: 3
-  follow_left_ee_rotation: 3
-  follow_left_gripper: 1
-  follow_right_ee_cartesian_pos: 3
-  follow_right_ee_rotation: 3
-  follow_right_gripper: 1
-  head_actions: 2
-  height: 1
-  car_pose: 3
-
-norm_stats_path: "wall-x/workspace/lerobot_example/libero/libero_norm_stats.json"
+norm_stats_path: "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/workspace/lerobot_example/libero/libero_norm_stats.json"
 
 enable_customized_robot_config: true
 customized_robot_config:
