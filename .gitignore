@@ -268,3 +268,6 @@ NOTES.md
 .env
 .env.local
 .env.*.local
+
+wallx_pt/
+wall_pt/

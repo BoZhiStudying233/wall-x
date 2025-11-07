@@ -44,7 +44,8 @@ ACTION_DATASET_NAMES = [
     "dzb/our_data_old_train",
     "dzb/our_data_old_test",
     "dzb/our_data_test",
-    "dzb/our_data_train"
+    "dzb/our_data_train",
+    "dzb/our_data_tiny"
 ]
 
 # Supported multimodal datasets

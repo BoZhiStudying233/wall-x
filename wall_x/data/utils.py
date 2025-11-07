@@ -24,6 +24,13 @@ KEY_MAPPINGS = {
         "state": "observation.state",
         "action": "action",
     },
+    "dzb/our_data_tiny": {
+        "camera": {
+            "video.front": "face_view",    
+        },
+        "state": "state",
+        "action": "action"
+    },
     "physical-intelligence/libero": {
         "camera": {
             "image": "face_view",

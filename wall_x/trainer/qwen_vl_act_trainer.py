@@ -496,7 +496,10 @@ class QwenVlAct_Trainer:
                 self.val_loss += self.accelerator.gather(loss.detach()).mean().item()
 
         # Calculate average validation loss
-        self.val_loss /= len(self.val_dataloader)
+        if len(self.val_dataloader)!=0:
+            self.val_loss /= len(self.val_dataloader)
+        else:
+            self.val_loss = 0
 
         # Log validation metrics
         if self.logger is not None:

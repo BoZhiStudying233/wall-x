@@ -140,8 +140,7 @@ class Normalizer(nn.Module):
             # Apply DOF mask if provided
             if mask is not None:
                 mask = mask[0].bool()
-                mask = torch.tensor([True, True, True, True, True, True, True,  # 前7维
-                     False, False, False, False, False, False, False, False, False, False, False, False, False])  # 后13维
+               
 
                 action_space_delta = self.delta[dataset_name][mask]
                 action_space_min = self.min[dataset_name][mask]
@@ -155,6 +154,7 @@ class Normalizer(nn.Module):
 
         new_xs = torch.stack(new_xs)
         return new_xs
+        # return xs
 
 
 class SinusoidalPosEmb(nn.Module):
@@ -259,7 +259,8 @@ class ActionProcessor(nn.Module):
         )
 
         # Proprioception projection layer (includes history/current state)
-        self.propri_proj = nn.Linear(self.propri_dim * 2, self.hidden_size, bias=False)#
+        # self.propri_proj = nn.Linear(self.propri_dim * 2, self.hidden_size, bias=False)#
+        self.propri_proj = nn.Linear(20 * 2, self.hidden_size, bias=False)#
 
         # Beta distribution noise scheduler configuration
         noise_scheduler_config = config.noise_scheduler
@@ -280,8 +281,11 @@ class ActionProcessor(nn.Module):
         self.time_embed = SinusoidalPosEmb(config.hidden_size)
 
         # Action embedding network: project to hidden space
+        # self.w1 = nn.Linear(
+        #     self.action_dim * 2, self.hidden_size, bias=False
+        # )  # *2 for action + DOF mask
         self.w1 = nn.Linear(
-            self.action_dim * 2, self.hidden_size, bias=False
+            20 * 2, self.hidden_size, bias=False
         )  # *2 for action + DOF mask
         self.w2 = nn.Linear(
             self.hidden_size * 2, self.hidden_size, bias=False
@@ -290,7 +294,8 @@ class ActionProcessor(nn.Module):
         self.act_fn = nn.SiLU()
 
         # Project back to action space for flow matching loss
-        self.action_proj_back = nn.Linear(self.hidden_size, self.action_dim, bias=False)
+        # self.action_proj_back = nn.Linear(self.hidden_size, self.action_dim, bias=False)
+        self.action_proj_back = nn.Linear(self.hidden_size, 20, bias=False)
         self.mse_loss = nn.MSELoss(reduction="none")
 
     def sample_time(self, batch_size, device, dtype):

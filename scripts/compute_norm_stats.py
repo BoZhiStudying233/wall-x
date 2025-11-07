@@ -52,19 +52,19 @@ def load_lerobot_dataset(repo_id, action_horizon, args):
 if __name__ == "__main__":
     # set args
     parser = argparse.ArgumentParser()
-    parser.add_argument("--batch_size", type=int, default=256)
+    parser.add_argument("--batch_size", type=int, default=256)#对于tiny data，需要改小
     parser.add_argument("--num_workers", type=int, default=8)
     parser.add_argument("--seed", type=int, default=0)
     args = parser.parse_args()
 
     # Configs
-    path = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/workspace/lerobot_example/UAV_large/config_qact_from_vlm.yml"
-    output_path = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/workspace/lerobot_example/UAV_large"
+    path = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/workspace/lerobot_example/UAV_tiny/config_qact.yml"
+    output_path = "/inspire/hdd/global_user/konghanlin-253108540238/user_cache/lerobot/dzb/our_data_tiny"
     config = load_config(path)
     lerobot_config = config["data"]["lerobot_config"]
     repo_id = lerobot_config.get("repo_id", None)
     assert repo_id is not None, "repo id is required"
-    action_horizon = config["data"].get("action_horizon", 32)
+    action_horizon = config["data"].get("action_horizon", 5)
 
     print("repo_id:", repo_id)
     data_loader, num_batches = load_lerobot_dataset(repo_id, action_horizon, args)

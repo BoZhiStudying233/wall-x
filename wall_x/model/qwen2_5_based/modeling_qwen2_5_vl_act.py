@@ -836,6 +836,10 @@ class Qwen2_5_VLMoEForAction(Qwen2_5_VLForConditionalGeneration):
         Returns:
             Qwen2_5_VLMoEForAction: Loaded model instance
         """
+        
+        # print("在这里")
+        # print("kwargs:", kwargs)
+
         # Load model components from pretrained path
         config_path = os.path.join(pretrained_model_path, "config.json")
         config = cls.config_class.from_pretrained(config_path)

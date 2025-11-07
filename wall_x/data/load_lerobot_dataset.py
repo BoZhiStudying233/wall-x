@@ -187,11 +187,11 @@ class PreprocessedDataset(Dataset[T_co]):
             self,
             num_replicas=self.world_size,
             rank=self.rank,
-            shuffle=False,
+            shuffle=True,
             seed=self.seed,
             drop_last=True,  # Ensure all processes have same number of batches
         )
-
+        # print("shuffle:", True)
         dataloader = torch.utils.data.DataLoader(
             self,
             batch_size=batch_size,
@@ -329,7 +329,8 @@ class DataCollator:
         x = (action - min_stat) / delta
         x = x * 2 - 1
         x = torch.clamp(x, -1, 1)
-        return x
+        # return x
+        return action
 
     def __call__(self, batch):
         additional_inputs = {}
@@ -344,29 +345,29 @@ class DataCollator:
                 agent_pos = self._normalize(
                     agent_pos, self.state_min_stat, self.state_delta
                 )
-                # if agent_pos.shape[-1] != 20:
-                #     agent_pos = torch.cat(
-                #         [
-                #             agent_pos,
-                #             torch.zeros(
-                #                 agent_pos.shape[0],
-                #                 agent_pos.shape[1],
-                #                 20 - agent_pos.shape[-1],
-                #             ),
-                #         ],
-                #         dim=-1,
-                #     )
-                #     agent_pos_mask = torch.cat(
-                #         [
-                #             agent_pos_mask,
-                #             torch.zeros(
-                #                 agent_pos_mask.shape[0],
-                #                 agent_pos_mask.shape[1],
-                #                 20 - agent_pos_mask.shape[-1],
-                #             ),
-                #         ],
-                #         dim=-1,
-                #     )
+                if agent_pos.shape[-1] != 20:
+                    agent_pos = torch.cat(
+                        [
+                            agent_pos,
+                            torch.zeros(
+                                agent_pos.shape[0],
+                                agent_pos.shape[1],
+                                20 - agent_pos.shape[-1],
+                            ),
+                        ],
+                        dim=-1,
+                    )
+                    agent_pos_mask = torch.cat(
+                        [
+                            agent_pos_mask,
+                            torch.zeros(
+                                agent_pos_mask.shape[0],
+                                agent_pos_mask.shape[1],
+                                20 - agent_pos_mask.shape[-1],
+                            ),
+                        ],
+                        dim=-1,
+                    )
                 additional_inputs["proprioception"] = agent_pos
                 additional_inputs["agent_pos_mask"] = agent_pos_mask
             elif key == "action":
@@ -378,27 +379,27 @@ class DataCollator:
                 action = self._normalize(
                     action, self.action_min_stat, self.action_delta
                 )
-                # if action.shape[-1] != 20:
-                #     action = torch.cat(
-                #         [
-                #             action,
-                #             torch.zeros(
-                #                 action.shape[0], action.shape[1], 20 - action.shape[-1]
-                #             ),
-                #         ],
-                #         dim=-1,
-                #     )
-                #     dof_mask = torch.cat(
-                #         [
-                #             dof_mask,
-                #             torch.zeros(
-                #                 dof_mask.shape[0],
-                #                 dof_mask.shape[1],
-                #                 20 - dof_mask.shape[-1],
-                #             ),
-                #         ],
-                #         dim=-1,
-                #     )
+                if action.shape[-1] != 20:
+                    action = torch.cat(
+                        [
+                            action,
+                            torch.zeros(
+                                action.shape[0], action.shape[1], 20 - action.shape[-1]
+                            ),
+                        ],
+                        dim=-1,
+                    )
+                    dof_mask = torch.cat(
+                        [
+                            dof_mask,
+                            torch.zeros(
+                                dof_mask.shape[0],
+                                dof_mask.shape[1],
+                                20 - dof_mask.shape[-1],
+                            ),
+                        ],
+                        dim=-1,
+                    )
                 additional_inputs["action_chunk"] = action
                 additional_inputs["dof_mask"] = dof_mask
             elif key == "image_inputs":

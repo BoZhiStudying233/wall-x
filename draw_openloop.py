@@ -213,6 +213,7 @@ def init_qwen2_5_model(config: dict, accelerator: "Accelerator" = None):
         # 作为子处理器挂载，供后续动作编码使用
         processor.action_processor = action_tokenizer
 
+    
     # 3) 构建模型（与训练脚本等价）
     model = Qwen2_5_VLMoEForAction(
         qwen_cfg,
@@ -257,155 +258,100 @@ def load_config(config_path):
     return config
 
 if __name__ == "__main__":
+    origin_action_dim = 6
+    pred_horizon = 5
     save_dir = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/open_loop_figs"
 
     # 一个最简用例：你可以把路径替换成自己的
     example_config = {
         "model_type": "qwen2_5",
         "qwen_vl_act_config_path": "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/open_loop_figs/qwen25_config.json",
-        "pretrained_wallx_path": "/inspire/hdd/global_user/konghanlin-253108540238/wall-x-pt_all/model",  # 目录下应有 *.safetensors 与 tokenizer/processor
+        "pretrained_wallx_path": "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/wallx_pt/Qwen2.5-VL-3B_noMOE/16/processor",  # 目录下应有 *.safetensors 与 tokenizer/processor
         "flow_loss_weight": 1.0,
         "use_fast_tokenizer": True,  # 若 False 可去掉 action_tokenizer_path
         "action_tokenizer_path": "/inspire/hdd/global_user/konghanlin-253108540238/fast_tokenizer",
     }
 
     acc = Accelerator() if Accelerator is not None else None
+
     model, processor, special_ids = init_qwen2_5_model(example_config, acc)
     print("loaded model!!!")
     model.eval()
     
-    path = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/workspace/lerobot_example/UAV_test/config_qact_from_vlm.yml"
+    path = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/workspace/lerobot_example/UAV_train/qwen2.5-3B-noMOE/config_qact.yml"
     config = load_config(path)
 
     
     dataload_config = get_data_configs(config["data"])
     lerobot_config = dataload_config.get("lerobot_config", {})
-    for i in range(50):
-        dataset = load_test_dataset(config, lerobot_config, seed=42)
-        dataloader = dataset.get_dataloader()
-        
-        total_frames = len(dataloader)
-        
-        action_dim = 7
-        gt_traj = torch.zeros((total_frames, action_dim))
-        pred_traj = torch.zeros((total_frames, action_dim))
+    dataset = load_test_dataset(config, lerobot_config, seed=42)
+    dataloader = dataset.get_dataloader()
 
-        # for name, param in model.named_parameters():
-        #     if "dct" in name and len(param.shape) > 1:
-        #         print(name, param.shape)
-        # print("Model DCT horizon:", model.action_preprocessor.dct_n)
-        # pred_horizon = model.action_preprocessor.dct_n
-        pred_horizon = config["data"]["action_horizon"]
+    total_frames = len(dataloader)
 
-        true_pred_horizon = 2
-        for idx, batch in tqdm(enumerate(dataloader), total=len(dataloader), desc="Processing"):
-            if (idx//true_pred_horizon * true_pred_horizon)+true_pred_horizon >= total_frames:  
-                break
-            
-            if idx % true_pred_horizon == 0 and idx + true_pred_horizon < total_frames:
-                batch = batch.to("cuda")
-                with torch.no_grad():
-                    outputs = model(
-                        **batch,
-                        action_dim=action_dim,
-                        pred_horizon=pred_horizon,
-                        mode="predict",
-                        predict_mode="fast",
-                    )
-                pred_traj[idx : idx + true_pred_horizon] = outputs["predict_action"][0][:true_pred_horizon].detach().cpu()
+    predict_mode = "fast" if config.get("use_fast_tokenizer", False) else "diffusion"
+    action_dim = 20 if predict_mode == "diffusion" else origin_action_dim
+    gt_traj = torch.zeros((total_frames, origin_action_dim))
+    pred_traj = torch.zeros((total_frames, origin_action_dim))
 
-                # 提取并解析 instruction 文本
-                input_text = outputs["input_text"]
-                
-                # 若为 list，则拼接或取第一个元素
-                if isinstance(input_text, list):
-                    if len(input_text) > 0:
-                        input_text = input_text[0]
-                    else:
-                        input_text = ""
-                elif not isinstance(input_text, str):
-                    input_text = str(input_text)  # 兜底转为字符串
-                
-                # 提取指令文本部分
-                start_idx = input_text.find("Instruction:")
-                mid_idx = input_text.find("You are performing a robotic manipulation task,")
-                end_idx = input_text.find("If you believe the robot can now")
-
-                if start_idx != -1 and mid_idx != -1:
-                    instruction_part1 = input_text[start_idx + len("Instruction:"):mid_idx].strip()
-                else:
-                    instruction_part1 = ""
-
-                if mid_idx != -1 and end_idx != -1:
-                    instruction_part2 = input_text[mid_idx+len("You are performing a robotic manipulation task,"):end_idx].strip()
-                else:
-                    instruction_part2 = ""
-
-                instruction_text = instruction_part1 + "\n" + instruction_part2
-                
-                
-                # Denormalize ground truth actions
-                gt_action_chunk = batch["action_chunk"][:, :, :action_dim]
-                dof_mask = batch["dof_mask"].to(gt_action_chunk.dtype)
-                denormalized_gt = model.action_preprocessor.normalizer_action.unnormalize_data(
-                    gt_action_chunk, ["x2_normal"], dof_mask
+    for idx, batch in tqdm(
+        enumerate(dataloader), total=total_frames, desc="predicting"
+    ):
+        if idx % pred_horizon == 0 and idx + pred_horizon < total_frames:
+            batch = batch.to("cuda")
+            with torch.no_grad():
+                outputs = model(
+                    **batch,
+                    action_dim=action_dim,
+                    pred_horizon=pred_horizon,
+                    mode="predict",
+                    predict_mode=predict_mode,
                 )
-                gt_traj[idx : idx + true_pred_horizon] = denormalized_gt[0][:true_pred_horizon].detach().cpu()
-                end = (idx//true_pred_horizon * true_pred_horizon)+true_pred_horizon
-                
-                if end > 15:
-                    break
-        print("end:",end)
-        gt_traj_np = gt_traj.numpy()
-        pred_traj_np = pred_traj.numpy()
+                pred_traj[idx : idx + pred_horizon] = (
+                    outputs["predict_action"][:, :, :origin_action_dim]
+                    .detach()
+                    .cpu()
+                    .squeeze(0)
+                )
 
-        timesteps = gt_traj.shape[0]
+            gt_action_chunk = batch["action_chunk"][:, :, :origin_action_dim]
+            dof_mask = batch["dof_mask"].to(gt_action_chunk.dtype)
+            denormalized_gt = (
+                model.action_preprocessor.normalizer_action.unnormalize_data(
+                    gt_action_chunk,
+                    [lerobot_config.get("repo_id", "physical-intelligence/libero")],
+                    dof_mask,
+                ).squeeze(0)
+            )
+            gt_traj[idx : idx + pred_horizon] = denormalized_gt.detach().cpu()
 
-        # fig, axs = plt.subplots(action_dim, 1, figsize=(15, 5 * action_dim), sharex=True)
-        # fig.suptitle("Action Comparison for lerobot", fontsize=16)
+    gt_traj_np = gt_traj.numpy()
+    pred_traj_np = pred_traj.numpy()
 
-        # for i in range(action_dim):
-        #     axs[i].plot(range(timesteps), gt_traj_np[:, i], label="Ground Truth")
-        #     axs[i].plot(range(timesteps), pred_traj_np[:, i], label="Prediction")
-        #     axs[i].set_ylabel(f"Action Dim {i+1}")
-        #     axs[i].legend()
-        #     axs[i].grid(True)
+    # ==================== 修改绘图部分 ====================
+    os.makedirs(save_dir, exist_ok=True)
+    save_path = os.path.join(save_dir, "Qwentest_lerobot_xy_trajectory.png")
 
-        # axs[-1].set_xlabel("Timestep")
-        # plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-        # os.makedirs(save_dir, exist_ok=True)
-        # plt.savefig(os.path.join(save_dir, "lerobot_comparison.png"))
-        # plt.close()
+    plt.figure(figsize=(10, 10))
+    plt.title("XY Trajectory Comparison (lerobot)")
 
-        fig, ax = plt.subplots(figsize=(8, 6), dpi=200)  # 提高 dpi 提升画质
+    # Ground truth trajectory
+    plt.plot(gt_traj_np[:, 0], gt_traj_np[:, 1], '-o', label='Ground Truth', alpha=0.7)
+    # Predicted trajectory
+    plt.plot(pred_traj_np[:, 0], pred_traj_np[:, 1], '-o', label='Prediction', alpha=0.7)
 
-        # 绘制 Ground Truth 轨迹（蓝色）
-        ax.plot(gt_traj_np[:end, 0], gt_traj_np[:end, 1], label="Ground Truth", color="blue", marker='o', markersize=2, linewidth=1)
+    # 标出编号（step index）
+    for i in range(0, len(gt_traj_np), max(1, len(gt_traj_np)//20)):
+        plt.text(gt_traj_np[i, 0], gt_traj_np[i, 1], str(i), fontsize=8, color='blue')
+        plt.text(pred_traj_np[i, 0], pred_traj_np[i, 1], str(i), fontsize=8, color='orange')
 
-        # 绘制 Prediction 轨迹（红色）
-        ax.plot(pred_traj_np[:end, 0], pred_traj_np[:end, 1], label="Prediction", color="red", marker='x', markersize=2, linewidth=1)
+    plt.xlabel("Action Dim 1 (X)")
+    plt.ylabel("Action Dim 2 (Y)")
+    plt.legend()
+    plt.axis('equal')
+    plt.tight_layout()
 
-
-    # 添加文本说明
-        if instruction_text:
-            fig.text(0.02, 0.02, instruction_text, fontsize=6, color='black', wrap=True,
-                    ha='left', va='bottom', transform=fig.transFigure)
-        # 标注每个点编号（数字小一些）
-        for p in range(len(gt_traj_np[:end])):
-            ax.text(gt_traj_np[p, 0], gt_traj_np[p, 1], str(p), fontsize=10, color='blue', va='bottom', ha='right')
-            ax.text(pred_traj_np[p, 0], pred_traj_np[p, 1], str(p), fontsize=10, color='red', va='bottom', ha='left')
-
-        # 设置标签和标题
-        ax.set_xlabel('X')
-        ax.set_ylabel('Y')
-        ax.set_title('Trajectory Comparison')
-
-        # 添加图例（去掉网格）
-        ax.legend()
-        ax.grid(False)
-
-        # 保存高质量图像
-        os.makedirs(save_dir, exist_ok=True)
-        plt.tight_layout()
-        plt.savefig(os.path.join(save_dir, f"trajectory_comparison_episode_{i}.png"), dpi=300)  # 输出更高分辨率
-        plt.close()
+    # 高分辨率保存
+    plt.savefig(save_path, dpi=600, bbox_inches='tight')
+    plt.close()
+    print(f"Saved high-resolution XY trajectory plot to {save_path}")

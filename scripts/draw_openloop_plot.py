@@ -1,4 +1,7 @@
 import os
+import sys
+sys.path.insert(0, "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx")
+
 import yaml
 import torch
 import argparse
@@ -14,33 +17,29 @@ def load_config(config_path):
         config = yaml.load(f, Loader=yaml.FullLoader)
 
     config["data"]["model_type"] = config.get("model_type")
-
     return config
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--pred_horizon", type=int, default=32)
-    parser.add_argument("--origin_action_dim", type=int, default=7)
+    parser.add_argument("--pred_horizon", type=int, default=5)
+    parser.add_argument("--origin_action_dim", type=int, default=6)
     args = parser.parse_args()
 
     origin_action_dim = args.origin_action_dim
     pred_horizon = args.pred_horizon
 
-    # get train config
-    model_path = "/path/to/model"
-    action_tokenizer_path = "/path/to/action/tokenizer"
-    save_dir = "/path/to/save/dir"
-    path = "/path/to/train/config"
+    model_path = "/inspire/hdd/global_user/konghanlin-253108540238/wall-x-pt_walloss_flow/9/processor"
+    action_tokenizer_path = "/inspire/hdd/global_user/konghanlin-253108540238/fast_tokenizer"
+    save_dir = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/open_loop_figs"
+    path = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/workspace/lerobot_example/UAV_train/config_qact.yml"
     config = load_config(path)
 
     # load model with customized robot config
     model = Qwen2_5_VLMoEForAction.from_pretrained(
-        model_path, train_config=config, action_tokenizer_path=action_tokenizer_path
+        pretrained_model_path=model_path, train_config=config, action_tokenizer_path=action_tokenizer_path
     )
-    model.eval()
-    model = model.to("cuda")
-    model = model.bfloat16()
+    model.eval().to("cuda").bfloat16()
 
     # get test dataloader
     dataload_config = get_data_configs(config["data"])
@@ -55,7 +54,6 @@ if __name__ == "__main__":
     gt_traj = torch.zeros((total_frames, origin_action_dim))
     pred_traj = torch.zeros((total_frames, origin_action_dim))
 
-    # use tqdm to show the progress
     for idx, batch in tqdm(
         enumerate(dataloader), total=total_frames, desc="predicting"
     ):
@@ -76,7 +74,6 @@ if __name__ == "__main__":
                     .squeeze(0)
                 )
 
-            # Denormalize ground truth actions
             gt_action_chunk = batch["action_chunk"][:, :, :origin_action_dim]
             dof_mask = batch["dof_mask"].to(gt_action_chunk.dtype)
             denormalized_gt = (
@@ -91,24 +88,30 @@ if __name__ == "__main__":
     gt_traj_np = gt_traj.numpy()
     pred_traj_np = pred_traj.numpy()
 
-    timesteps = gt_traj.shape[0]
-
-    fig, axs = plt.subplots(
-        origin_action_dim, 1, figsize=(15, 5 * origin_action_dim), sharex=True
-    )
-    fig.suptitle("Action Comparison for lerobot", fontsize=16)
-
-    for i in range(origin_action_dim):
-        axs[i].plot(range(timesteps), gt_traj_np[:, i], label="Ground Truth")
-        axs[i].plot(range(timesteps), pred_traj_np[:, i], label="Prediction")
-        axs[i].set_ylabel(f"Action Dim {i+1}")
-        axs[i].legend()
-        axs[i].grid(True)
-
-    axs[-1].set_xlabel("Timestep")
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+    # ==================== 修改绘图部分 ====================
     os.makedirs(save_dir, exist_ok=True)
-    save_path = os.path.join(save_dir, "lerobot_comparison.png")
-    plt.savefig(save_path)
-    print(f"Saved plot to {save_path}")
+    save_path = os.path.join(save_dir, "lerobot_xy_trajectory.png")
+
+    plt.figure(figsize=(10, 10))
+    plt.title("XY Trajectory Comparison (lerobot)")
+
+    # Ground truth trajectory
+    plt.plot(gt_traj_np[:, 0], gt_traj_np[:, 1], '-o', label='Ground Truth', alpha=0.7)
+    # Predicted trajectory
+    plt.plot(pred_traj_np[:, 0], pred_traj_np[:, 1], '-o', label='Prediction', alpha=0.7)
+
+    # 标出编号（step index）
+    for i in range(0, len(gt_traj_np), max(1, len(gt_traj_np)//20)):
+        plt.text(gt_traj_np[i, 0], gt_traj_np[i, 1], str(i), fontsize=8, color='blue')
+        plt.text(pred_traj_np[i, 0], pred_traj_np[i, 1], str(i), fontsize=8, color='orange')
+
+    plt.xlabel("Action Dim 1 (X)")
+    plt.ylabel("Action Dim 2 (Y)")
+    plt.legend()
+    plt.axis('equal')
+    plt.tight_layout()
+
+    # 高分辨率保存
+    plt.savefig(save_path, dpi=600, bbox_inches='tight')
     plt.close()
+    print(f"Saved high-resolution XY trajectory plot to {save_path}")

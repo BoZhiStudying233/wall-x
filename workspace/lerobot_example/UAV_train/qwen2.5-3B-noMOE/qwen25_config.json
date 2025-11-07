@@ -58,7 +58,7 @@
         24
       ]
     },
-    "vocab_size": 153715,
+    "vocab_size": 151936,
     "num_experts": 2,
     "experts":[
       {
@@ -73,12 +73,13 @@
       }
     ],
     "dof_config": {
-        "position": 3,
-        "rotation": 3
+      "position": 3,
+      "rotation": 3
     },
     "agent_pos_config": {
       "position": 3,
       "rotation": 3
+
     },
     "noise_scheduler": {
       "beta_alpha": 1.5,
@@ -88,5 +89,5 @@
     },
     "dim_inputs": [2048,2048],
     "attention_moe": false,
-    "mlp_moe": true
+    "mlp_moe": false
   }
