@@ -266,7 +266,7 @@ if __name__ == "__main__":
     example_config = {
         "model_type": "qwen2_5",
         "qwen_vl_act_config_path": "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/open_loop_figs/qwen25_config.json",
-        "pretrained_wallx_path": "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/wallx_pt/Qwen2.5-VL-3B_noMOE_tiny/98/processor",  # 目录下应有 *.safetensors 与 tokenizer/processor
+        "pretrained_wallx_path": "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/wallx_pt/Qwen2.5-VL-3B_noMOE/16/processor",  # 目录下应有 *.safetensors 与 tokenizer/processor
         "flow_loss_weight": 1.0,
         "use_fast_tokenizer": True,  # 若 False 可去掉 action_tokenizer_path
         "action_tokenizer_path": "/inspire/hdd/global_user/konghanlin-253108540238/fast_tokenizer",
@@ -278,7 +278,7 @@ if __name__ == "__main__":
     print("loaded model!!!")
     model.eval()
     
-    path = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/workspace/lerobot_example/UAV_tiny/qwen2.5-3B-noMOE/config_qact.yml"
+    path = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/workspace/lerobot_example/UAV_train/qwen2.5-3B-noMOE/config_qact.yml"
     config = load_config(path)
 
     
@@ -383,7 +383,7 @@ if __name__ == "__main__":
         fig.text(0.02, 0.02, instruction_text, fontsize=6, color='black', wrap=True,
                  ha='left', va='bottom')
     save_path = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/open_loop_figs"
-    save_path = os.path.join(save_path, f"testtiny_qwen_good.png")
+    save_path = os.path.join(save_path, f"test_qwen_good.png")
     # 高分辨率保存
     plt.savefig(save_path, dpi=600, bbox_inches='tight')
     plt.close(fig)

@@ -213,7 +213,6 @@ def init_qwen2_5_model(config: dict, accelerator: "Accelerator" = None):
         # 作为子处理器挂载，供后续动作编码使用
         processor.action_processor = action_tokenizer
 
-    
     # 3) 构建模型（与训练脚本等价）
     model = Qwen2_5_VLMoEForAction(
         qwen_cfg,
@@ -266,7 +265,7 @@ if __name__ == "__main__":
     example_config = {
         "model_type": "qwen2_5",
         "qwen_vl_act_config_path": "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/open_loop_figs/qwen25_config.json",
-        "pretrained_wallx_path": "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/wallx_pt/Qwen2.5-VL-3B_noMOE_tiny/98/processor",  # 目录下应有 *.safetensors 与 tokenizer/processor
+        "pretrained_wallx_path": "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/wallx_pt/Qwen2.5-VL-3B_noMOE/16/processor",  # 目录下应有 *.safetensors 与 tokenizer/processor
         "flow_loss_weight": 1.0,
         "use_fast_tokenizer": True,  # 若 False 可去掉 action_tokenizer_path
         "action_tokenizer_path": "/inspire/hdd/global_user/konghanlin-253108540238/fast_tokenizer",
@@ -278,7 +277,7 @@ if __name__ == "__main__":
     print("loaded model!!!")
     model.eval()
     
-    path = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/workspace/lerobot_example/UAV_tiny/qwen2.5-3B-noMOE/config_qact.yml"
+    path = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/workspace/lerobot_example/UAV_train/qwen2.5-3B-noMOE/config_qact.yml"
     config = load_config(path)
 
     
@@ -287,12 +286,10 @@ if __name__ == "__main__":
     dataset = load_test_dataset(config, lerobot_config, seed=42)
     dataloader = dataset.get_dataloader()
     total_frames = len(dataloader)
-
     predict_mode = "fast" if config.get("use_fast_tokenizer", False) else "diffusion"
     action_dim = 20 if predict_mode == "diffusion" else origin_action_dim
     gt_traj = torch.zeros((total_frames, origin_action_dim))
     pred_traj = torch.zeros((total_frames, origin_action_dim))
-
     for idx, batch in tqdm(
         enumerate(dataloader), total=total_frames, desc="predicting"
     ):
@@ -355,36 +352,38 @@ if __name__ == "__main__":
     gt_traj_np = gt_traj.numpy()
     pred_traj_np = pred_traj.numpy()
 
-    # ==================== 修改绘图部分 ====================
-    os.makedirs(save_dir, exist_ok=True)
-    # 创建图像对象
-    fig = plt.figure(figsize=(10, 10))
-    plt.title("XY Trajectory Comparison (lerobot)")
+    timesteps = gt_traj.shape[0]
 
-    # Ground truth trajectory
-    plt.plot(gt_traj_np[:, 0], gt_traj_np[:, 1], '-o', label='Ground Truth', alpha=0.7)
-    # Predicted trajectory
-    plt.plot(pred_traj_np[:, 0], pred_traj_np[:, 1], '-o', label='Prediction', alpha=0.7)
 
-    # 标出编号（step index）
-    for i in range(0, len(gt_traj_np), max(1, len(gt_traj_np)//20)):
-        plt.text(gt_traj_np[i, 0], gt_traj_np[i, 1], str(i), fontsize=8, color='blue')
-        plt.text(pred_traj_np[i, 0], pred_traj_np[i, 1], str(i), fontsize=8, color='orange')
+    fig, ax = plt.subplots(figsize=(8, 6), dpi=200)  # 提高 dpi 提升画质
 
-    plt.xlabel("Action Dim 1 (X)")
-    plt.ylabel("Action Dim 2 (Y)")
-    plt.legend()
-    plt.axis('equal')
-    plt.tight_layout()
+    # 绘制 Ground Truth 轨迹（蓝色）
+    # ax.plot(gt_traj_np[:end, 0], gt_traj_np[:end, 1], label="Ground Truth", color="blue", marker='o', markersize=2, linewidth=1)
 
-    # 在图下方添加说明文字
+    # 绘制 Prediction 轨迹（红色）
+    ax.plot(pred_traj_np[:, 0], pred_traj_np[:, 1], label="Prediction", color="red", marker='x', markersize=2, linewidth=1)
+
+
+# 添加文本说明
     if instruction_text:
-        # 使用 fig.text 而非 plt.text，因为要在整张图坐标系中添加文本
         fig.text(0.02, 0.02, instruction_text, fontsize=6, color='black', wrap=True,
-                 ha='left', va='bottom')
-    save_path = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/open_loop_figs"
-    save_path = os.path.join(save_path, f"testtiny_qwen_good.png")
-    # 高分辨率保存
-    plt.savefig(save_path, dpi=600, bbox_inches='tight')
-    plt.close(fig)
-    print(f"✅ Saved high-resolution XY trajectory plot to {save_path}")
+                ha='left', va='bottom', transform=fig.transFigure)
+    # 标注每个点编号（数字小一些）
+    for p in range(len(gt_traj_np[:])):
+        # ax.text(gt_traj_np[p, 0], gt_traj_np[p, 1], str(p), fontsize=10, color='blue', va='bottom', ha='right')
+        ax.text(pred_traj_np[p, 0], pred_traj_np[p, 1], str(p), fontsize=10, color='red', va='bottom', ha='left')
+
+    # 设置标签和标题
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_title('Trajectory Comparison')
+
+    # 添加图例（去掉网格）
+    ax.legend()
+    ax.grid(False)
+
+    # 保存高质量图像
+    os.makedirs(save_dir, exist_ok=True)
+    plt.tight_layout()
+    plt.savefig(os.path.join(save_dir, f"trajectory_test_episode_0.png"), dpi=300)  # 输出更高分辨率
+    plt.close()

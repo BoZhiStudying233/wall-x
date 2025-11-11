@@ -1,12 +1,12 @@
 #!/bin/bash
-export CUDA_VISIBLE_DEVICES=0
+export CUDA_VISIBLE_DEVICES=1
 NUM_GPUS=$(echo $CUDA_VISIBLE_DEVICES | tr ',' '\n' | wc -l)
 
 # print current time
 echo "[current time: $(date +'%Y-%m-%d %H:%M:%S')]"
 
 code_dir="/inspire/hdd/global_user/konghanlin-253108540238/new_wallx"
-config_path="/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/workspace/lerobot_example/UAV_train/qwen2.5-7B-noMOE"
+config_path="/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/workspace/lerobot_example/UAV_tiny/qwen2.5-3B-noMOE"
 
 # Use a fixed port instead of a random one
 export PORT=$((21000 + $RANDOM % 30000))

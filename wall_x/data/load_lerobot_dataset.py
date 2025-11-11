@@ -640,8 +640,8 @@ class TestDataset(PreprocessedDataset):
 def load_test_dataset(
     config,
     lerobot_config,
+    episode,
     seed=42,
-    episode=0,
 ):
     """
     Load test dataset
@@ -677,10 +677,10 @@ def load_test_dataset(
             for t in range(dataload_config.get("action_horizon", 33) - 1)
         ],
     }
-
+    # episode = [0,1,2,3,4,5,6]
     dataset = LeRobotDataset(
         repo_id,
-        episodes=[episode],
+        episodes=episode,
         delta_timestamps=delta_timestamps,
         video_backend="pyav",
         root=root,
