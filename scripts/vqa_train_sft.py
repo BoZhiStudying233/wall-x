@@ -1,0 +1,406 @@
+import os
+import json
+import math
+import argparse
+from dataclasses import dataclass
+from typing import List, Dict, Any, Optional
+
+import torch
+from torch.utils.data import Dataset, DataLoader
+from torch.nn.utils.rnn import pad_sequence
+from PIL import Image
+
+from transformers import AutoProcessor
+
+# Import the installed model class (do not modify model code)
+from wall_x.model.qwen2_5_based.modeling_qwen2_5_vl_act import (
+    Qwen2_5_VLMoEForAction,
+)
+
+
+@dataclass
+class TrainArgs:
+    model_path: str
+    train_file: str
+    image_root: str
+    output_dir: str = "./vqa_sft_ckpt"
+    batch_size: int = 1
+    num_workers: int = 2
+    lr: float = 1e-5
+    epochs: int = 1
+    grad_accum_steps: int = 1
+    val_file: Optional[str] = None
+    validate_every: int = 100
+    max_val_samples: Optional[int] = 64
+    max_samples: Optional[int] = None
+    log_every: int = 10
+    precision: str = "bf16"  # choices: ["bf16", "fp16", "fp32"]
+
+
+class VQAJsonlDataset(Dataset):
+    """Simple VQA dataset reading JSONL with keys: image, question, answer, question_type."""
+
+    def __init__(self, jsonl_path: str, image_root: str, processor: AutoProcessor):
+        self.samples: List[Dict[str, Any]] = []
+        self.image_root = image_root
+        self.processor = processor
+
+        with open(jsonl_path, "r", encoding="utf-8") as f:
+            for i, line in enumerate(f):
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    obj = json.loads(line)
+                except Exception:
+                    continue
+                image_path = obj.get("image")
+                question = obj.get("question")
+                answer = obj.get("answer")
+                qtype = obj.get("question_type", "vqa")
+                if image_path is None or question is None or answer is None:
+                    continue
+                self.samples.append(
+                    {
+                        "image": image_path,
+                        "question": question,
+                        "answer": answer,
+                        "dataset_name": qtype,
+                    }
+                )
+
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, idx: int) -> Dict[str, Any]:
+        sample = self.samples[idx]
+        img_path = os.path.join(self.image_root, sample["image"]) if self.image_root else sample["image"]
+        image = Image.open(img_path).convert("RGB")
+
+        # Build chat template: user image + text
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image"},
+                    {"type": "text", "text": sample["question"]},
+                ],
+            }
+        ]
+
+        # Prompt for generation (assistant role header appended)
+        prompt_text = self.processor.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=True
+        )
+
+        # Target answer text: we keep it minimal (letter) and add eos
+        target_text = sample["answer"].strip()
+        if len(target_text) == 0:
+            target_text = "A"
+
+        eos = self.processor.tokenizer.eos_token or ""
+        full_text = prompt_text + target_text + (eos if eos is not None else "")
+
+        # Use the full text + image to get multimodal inputs
+        proc = self.processor(text=[full_text], images=[image], return_tensors="pt")
+
+        # Compute label span by tokenizing only the target part (no special tokens)
+        answer_ids = self.processor.tokenizer(
+            target_text + (eos if eos is not None else ""),
+            add_special_tokens=False,
+            return_tensors="pt",
+        )["input_ids"][0]
+
+        input_ids = proc["input_ids"][0]
+        attention_mask = proc["attention_mask"][0]
+        # Build labels: mask everything except the last len(answer_ids) tokens
+        labels = torch.full_like(input_ids, fill_value=-100)
+        labels[-len(answer_ids) :] = answer_ids
+
+        item: Dict[str, Any] = {
+            "input_ids": input_ids,
+            "attention_mask": attention_mask,
+            "labels": labels,
+            # Model expects these for vision
+            # Important: keep processor-provided shapes intact (no extra sample dim)
+            # - pixel_values shape: (num_image_patches_total, 3, patch, patch)
+            # - image_grid_thw shape: (num_images, 3)
+            "pixel_values": proc.get("pixel_values") if proc.get("pixel_values") is not None else None,
+            "image_grid_thw": proc.get("image_grid_thw") if proc.get("image_grid_thw") is not None else None,
+            # Route all tokens to expert 0 by default
+            "moe_token_types": torch.zeros_like(input_ids),
+            # Use a known multimodal dataset name to avoid KeyError in model loss aggregation
+            "dataset_name": "multimodal_VQAv2",
+        }
+
+        return item
+
+
+def vqa_collate_fn(batch: List[Dict[str, Any]], pad_token_id: int) -> Dict[str, Any]:
+    # Determine max seq len
+    input_ids_list = [b["input_ids"] for b in batch]
+    attn_list = [b["attention_mask"] for b in batch]
+    labels_list = [b["labels"] for b in batch]
+    moe_types_list = [b["moe_token_types"] for b in batch]
+
+    max_len = max(x.size(0) for x in input_ids_list)
+
+    def pad_1d(t: torch.Tensor, pad_value: int):
+        if t.size(0) == max_len:
+            return t
+        return torch.cat(
+            [t, torch.full((max_len - t.size(0),), pad_value, dtype=t.dtype)], dim=0
+        )
+
+    input_ids = torch.stack([pad_1d(x, pad_token_id) for x in input_ids_list], dim=0)
+    attention_mask = torch.stack([pad_1d(x, 0) for x in attn_list], dim=0)
+    labels = torch.stack([pad_1d(x, -100) for x in labels_list], dim=0)
+    moe_token_types = torch.stack([pad_1d(x, 0) for x in moe_types_list], dim=0)
+
+    # Vision fields (stack if present)
+    if batch[0]["pixel_values"] is not None:
+        # Concatenate along patch dimension across samples
+        pixel_values = torch.cat([b["pixel_values"] for b in batch], dim=0)
+    else:
+        pixel_values = None
+    if batch[0]["image_grid_thw"] is not None:
+        # Concatenate images across samples: shape (sum(num_images), 3)
+        image_grid_thw = torch.cat([b["image_grid_thw"] for b in batch], dim=0)
+    else:
+        image_grid_thw = None
+
+    dataset_names = [b.get("dataset_name", "multimodal_VQAv2") for b in batch]
+
+    return {
+        "input_ids": input_ids,
+        "attention_mask": attention_mask,
+        "labels": labels,
+        "pixel_values": pixel_values,
+        "image_grid_thw": image_grid_thw,
+        "moe_token_types": moe_token_types,
+        "dataset_names": dataset_names,
+    }
+
+
+def get_dtype(precision: str):
+    prec = precision.lower()
+    if prec == "bf16":
+        return torch.bfloat16
+    if prec == "fp16":
+        return torch.float16
+    return torch.float32
+
+
+def train(args: TrainArgs):
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    # Load processor and model
+    processor = AutoProcessor.from_pretrained(args.model_path, trust_remote_code=True)
+    try:
+        model = Qwen2_5_VLMoEForAction.from_pretrained(args.model_path)
+    except TypeError:
+        # In case the installed class requires additional args, try without extras
+        model = Qwen2_5_VLMoEForAction.from_pretrained(args.model_path)
+
+    dtype = get_dtype(args.precision)
+    if device == "cuda":
+        model = model.to(device, dtype=dtype)
+    else:
+        model = model.to(device)
+
+    # Dataset + loader
+    dataset = VQAJsonlDataset(args.train_file, args.image_root, processor)
+    if args.max_samples is not None:
+        dataset.samples = dataset.samples[: args.max_samples]
+
+    collate = lambda batch: vqa_collate_fn(batch, pad_token_id=processor.tokenizer.pad_token_id)
+    loader = DataLoader(
+        dataset,
+        batch_size=args.batch_size,
+        shuffle=True,
+        num_workers=args.num_workers,
+        collate_fn=collate,
+        pin_memory=(device == "cuda"),
+    )
+
+    # Optimizer
+    optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr)
+
+    os.makedirs(args.output_dir, exist_ok=True)
+
+    model.train()
+    global_step = 0
+    scaler = None  # Optional: leave off grad scaler unless using fp16
+
+    def run_validation() -> Optional[float]:
+        if not args.val_file:
+            return None
+        model.eval()
+        total = 0
+        correct = 0
+        # Lightweight on-the-fly loop, sample-by-sample to keep shapes simple
+        with open(args.val_file, "r", encoding="utf-8") as f:
+            for i, line in enumerate(f):
+                if args.max_val_samples is not None and i >= args.max_val_samples:
+                    break
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    obj = json.loads(line)
+                except Exception:
+                    continue
+                img_rel = obj.get("image")
+                question = obj.get("question")
+                answer = str(obj.get("answer", "")).strip()
+                if not img_rel or not question or not answer:
+                    continue
+                # Build message and process
+                img_path = os.path.join(args.image_root, img_rel) if args.image_root else img_rel
+                try:
+                    image = Image.open(img_path).convert("RGB")
+                except Exception:
+                    continue
+                messages = [
+                    {"role": "user", "content": [{"type": "image"}, {"type": "text", "text": question}]}
+                ]
+                prompt = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+                proc = processor(text=[prompt], images=[image], return_tensors="pt")
+                inputs = {k: v for k, v in proc.items()}
+                inputs["input_ids"] = inputs["input_ids"].to(device)
+                inputs["attention_mask"] = inputs["attention_mask"].to(device)
+                if inputs.get("pixel_values") is not None:
+                    inputs["pixel_values"] = inputs["pixel_values"].to(device, dtype=dtype)
+                if inputs.get("image_grid_thw") is not None:
+                    inputs["image_grid_thw"] = inputs["image_grid_thw"].to(device)
+                # Model-specific required fields
+                inputs["moe_token_types"] = torch.zeros_like(inputs["input_ids"]).to(device)
+                inputs["dataset_names"] = ["multimodal_VQAv2"]
+
+                gen_params = {
+                    "max_new_tokens": 16,
+                    "do_sample": False,
+                    "eos_token_id": processor.tokenizer.eos_token_id,
+                    "pad_token_id": processor.tokenizer.pad_token_id,
+                }
+                with torch.no_grad():
+                    out_ids = model.generate(**inputs, **gen_params)
+                # Slice generated part
+                gen_only = out_ids[0, inputs["input_ids"].shape[1] :]
+                text = processor.batch_decode([gen_only], skip_special_tokens=True, clean_up_tokenization_spaces=False)[0]
+
+                # Extract first choice letter A/B/C/D present
+                pred = None
+                for ch in ["A", "B", "C", "D"]:
+                    if ch in text:
+                        pred = ch
+                        break
+                if pred is None and len(text.strip()) > 0:
+                    # Fallback: first uppercase alpha
+                    for c in text:
+                        if c.isalpha():
+                            pred = c.upper()
+                            break
+                if pred is not None and pred == answer.strip().upper():
+                    correct += 1
+                total += 1
+        acc = (correct / total) if total > 0 else 0.0
+        print(f"[Validation] samples={total} acc={acc:.4f}")
+        model.train()
+        return acc
+
+    for epoch in range(args.epochs):
+        for step, batch in enumerate(loader):
+            input_ids = batch["input_ids"].to(device)
+            attention_mask = batch["attention_mask"].to(device)
+            labels = batch["labels"].to(device)
+            moe_token_types = batch["moe_token_types"].to(device)
+            dataset_names = batch["dataset_names"]
+
+            pixel_values = batch["pixel_values"]
+            image_grid_thw = batch["image_grid_thw"]
+            if pixel_values is not None:
+                pixel_values = pixel_values.to(device, dtype=dtype)
+            if image_grid_thw is not None:
+                image_grid_thw = image_grid_thw.to(device)
+
+            outputs = model(
+                mode="train",
+                input_ids=input_ids,
+                attention_mask=attention_mask,
+                labels=labels,
+                pixel_values=pixel_values,
+                image_grid_thw=image_grid_thw,
+                moe_token_types=moe_token_types,
+                dataset_names=dataset_names,
+                return_dict=True,
+            )
+
+            loss = outputs.loss
+            loss = loss / max(1, args.grad_accum_steps)
+            loss.backward()
+
+            if (step + 1) % args.grad_accum_steps == 0:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
+                optimizer.step()
+                optimizer.zero_grad(set_to_none=True)
+                global_step += 1
+
+                if global_step % args.log_every == 0:
+                    ce = (
+                        outputs.cross_entropy_loss.detach().item()
+                        if outputs.cross_entropy_loss is not None
+                        else float("nan")
+                    )
+                    print(f"epoch {epoch} step {global_step} | loss={loss.item():.4f} ce={ce:.4f}")
+
+                # Periodic validation on global steps
+                if args.val_file and (global_step % max(1, args.validate_every) == 0):
+                    run_validation()
+
+        # Save a simple state dict per epoch (prototype)
+        save_path = os.path.join(args.output_dir, f"pytorch_model_epoch_{epoch}.pt")
+        torch.save(model.state_dict(), save_path)
+        print(f"Saved checkpoint to {save_path}")
+
+
+def parse_args() -> TrainArgs:
+    parser = argparse.ArgumentParser(description="Prototype VQA SFT training loop (custom)")
+    parser.add_argument("--model_path", type=str, required=True)
+    parser.add_argument("--train_file", type=str, required=True)
+    parser.add_argument("--image_root", type=str, default="")
+    parser.add_argument("--output_dir", type=str, default="./vqa_sft_ckpt")
+    parser.add_argument("--batch_size", type=int, default=1)
+    parser.add_argument("--num_workers", type=int, default=2)
+    parser.add_argument("--lr", type=float, default=5e-6)
+    parser.add_argument("--epochs", type=int, default=1)
+    parser.add_argument("--grad_accum_steps", type=int, default=4)
+    parser.add_argument("--val_file", type=str, default=None)
+    parser.add_argument("--validate_every", type=int, default=100)
+    parser.add_argument("--max_val_samples", type=int, default=64)
+    parser.add_argument("--max_samples", type=int, default=None)
+    parser.add_argument("--log_every", type=int, default=10)
+    parser.add_argument("--precision", type=str, default="bf16", choices=["bf16", "fp16", "fp32"])
+
+    ns = parser.parse_args()
+    return TrainArgs(
+        model_path=ns.model_path,
+        train_file=ns.train_file,
+        image_root=ns.image_root,
+        output_dir=ns.output_dir,
+        batch_size=ns.batch_size,
+        num_workers=ns.num_workers,
+        lr=ns.lr,
+        epochs=ns.epochs,
+        grad_accum_steps=ns.grad_accum_steps,
+        val_file=ns.val_file,
+        validate_every=ns.validate_every,
+        max_val_samples=ns.max_val_samples,
+        max_samples=ns.max_samples,
+        log_every=ns.log_every,
+        precision=ns.precision,
+    )
+
+
+if __name__ == "__main__":
+    train(parse_args())

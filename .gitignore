@@ -273,3 +273,8 @@ wallx_pt/
 wall_pt/
 open_loop_figs/
 user_cache/
+datasets/
+lerobotdata_process/
+ori_model/
+fast_tokenizer/
+workspace/

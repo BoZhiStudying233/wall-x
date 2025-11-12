@@ -1,6 +1,6 @@
 import sys
 import os
-sys.path.insert(0, "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx")
+sys.path.insert(0, "/data2/konghanlin/new_wallx")
 os.environ["LEROBOT_VIDEO_BACKEND"] = "opencv"  # 必须放在 import lerobot 之前
 
 import yaml
@@ -58,8 +58,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # Configs
-    path = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/workspace/lerobot_example/UAV_tiny/config_qact.yml"
-    output_path = "/inspire/hdd/global_user/konghanlin-253108540238/user_cache/lerobot/dzb/our_data_tiny"
+    path = "/data2/konghanlin/new_wallx/workspace/lerobot_example/UAV_test/wall-oss_fast-withMOE/config_qact.yml"
+    output_path = "/data2/konghanlin/new_wallx/datasets/lerobot_datasets/dzb/our_data_test"
     config = load_config(path)
     lerobot_config = config["data"]["lerobot_config"]
     repo_id = lerobot_config.get("repo_id", None)

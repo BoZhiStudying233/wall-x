@@ -5,10 +5,10 @@ log_name: "robotic_training"
 log_project: "vla_training"
 model_type: qwen2_5
 pretrained_wallx_path: "/inspire/hdd/global_user/konghanlin-253108540238/VLA_pt/Qwen2.5-VL-3B-Instruct"  # Must set
-save_path: "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/wallx_pt/Qwen2.5-VL-3B_noMOE"                # Must set
+save_path: "/data2/konghanlin/new_wallx/wallx_pt/Qwen2.5-VL-3B_noMOE"                # Must set
 use_fast_tokenizer: True                       # True: train FAST, False: train Flow
 action_tokenizer_path: "/inspire/hdd/global_user/konghanlin-253108540238/fast_tokenizer"         # Must set if use_fast_tokenizer is true
-qwen_vl_act_config_path: "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/workspace/lerobot_example/UAV_train/qwen2.5-3B-noMOE/qwen25_config.json"
+qwen_vl_act_config_path: "/data2/konghanlin/new_wallx/workspace/lerobot_example/UAV_train/qwen2.5-3B-noMOE/qwen25_config.json"
 
 
 # Torch Profile

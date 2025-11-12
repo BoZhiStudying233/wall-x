@@ -260,13 +260,13 @@ def load_config(config_path):
 if __name__ == "__main__":
     origin_action_dim = 6
     pred_horizon = 5
-    save_dir = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/open_loop_figs"
+    save_dir = "/data2/konghanlin/new_wallx/open_loop_figs"
 
     # 一个最简用例：你可以把路径替换成自己的
     example_config = {
         "model_type": "qwen2_5",
-        "qwen_vl_act_config_path": "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/open_loop_figs/qwen25_config.json",
-        "pretrained_wallx_path": "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/wallx_pt/Qwen2.5-VL-3B_noMOE/16/processor",  # 目录下应有 *.safetensors 与 tokenizer/processor
+        "qwen_vl_act_config_path": "/data2/konghanlin/new_wallx/open_loop_figs/qwen25_config.json",
+        "pretrained_wallx_path": "/data2/konghanlin/new_wallx/wallx_pt/Qwen2.5-VL-3B_noMOE/16/processor",  # 目录下应有 *.safetensors 与 tokenizer/processor
         "flow_loss_weight": 1.0,
         "use_fast_tokenizer": True,  # 若 False 可去掉 action_tokenizer_path
         "action_tokenizer_path": "/inspire/hdd/global_user/konghanlin-253108540238/fast_tokenizer",
@@ -278,7 +278,7 @@ if __name__ == "__main__":
     print("loaded model!!!")
     model.eval()
     
-    path = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/workspace/lerobot_example/UAV_train/qwen2.5-3B-noMOE/config_qact.yml"
+    path = "/data2/konghanlin/new_wallx/workspace/lerobot_example/UAV_train/qwen2.5-3B-noMOE/config_qact.yml"
     config = load_config(path)
 
     
@@ -382,7 +382,7 @@ if __name__ == "__main__":
         # 使用 fig.text 而非 plt.text，因为要在整张图坐标系中添加文本
         fig.text(0.02, 0.02, instruction_text, fontsize=6, color='black', wrap=True,
                  ha='left', va='bottom')
-    save_path = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/open_loop_figs"
+    save_path = "/data2/konghanlin/new_wallx/open_loop_figs"
     save_path = os.path.join(save_path, f"test_qwen_good.png")
     # 高分辨率保存
     plt.savefig(save_path, dpi=600, bbox_inches='tight')

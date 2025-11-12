@@ -1,6 +1,6 @@
 import os
 import sys
-sys.path.insert(0, "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx")
+sys.path.insert(0, "/data2/konghanlin/new_wallx")
 
 import yaml
 import torch
@@ -29,10 +29,10 @@ if __name__ == "__main__":
     origin_action_dim = args.origin_action_dim
     pred_horizon = args.pred_horizon
 
-    model_path = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/wall_pt/wall-oss-fast-withMOE/5/processor"
+    model_path = "/data2/konghanlin/new_wallx/wall_pt/wall-oss-fast-withMOE/5/processor"
     action_tokenizer_path = "/inspire/hdd/global_user/konghanlin-253108540238/fast_tokenizer"
-    save_dir = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/open_loop_figs/draw_openloop_plot_wall-oss-fast-withMOE_forUAVtest"
-    path = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/workspace/lerobot_example/UAV_test/wall-oss_fast-withMOE/config_qact.yml"
+    save_dir = "/data2/konghanlin/new_wallx/open_loop_figs/draw_openloop_plot_wall-oss-fast-withMOE_forUAVtest"
+    path = "/data2/konghanlin/new_wallx/workspace/lerobot_example/UAV_test/wall-oss_fast-withMOE/config_qact.yml"
     config = load_config(path)
 
     # load model with customized robot config

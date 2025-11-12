@@ -5,8 +5,8 @@ NUM_GPUS=$(echo $CUDA_VISIBLE_DEVICES | tr ',' '\n' | wc -l)
 # print current time
 echo "[current time: $(date +'%Y-%m-%d %H:%M:%S')]"
 
-code_dir="/inspire/hdd/global_user/konghanlin-253108540238/new_wallx"
-config_path="/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/workspace/lerobot_example/UAV_tiny/qwen2.5-3B-noMOE"
+code_dir="/data2/konghanlin/new_wallx"
+config_path="/data2/konghanlin/new_wallx/workspace/lerobot_example/UAV_train/wall-oss_flow-withMOE"
 
 # Use a fixed port instead of a random one
 export PORT=$((21000 + $RANDOM % 30000))

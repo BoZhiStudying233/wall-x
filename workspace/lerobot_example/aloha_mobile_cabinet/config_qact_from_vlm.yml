@@ -8,7 +8,7 @@ pretrained_wallx_path: "/inspire/hdd/global_user/konghanlin-253108540238/VLA_pt/
 save_path: "/inspire/hdd/global_user/konghanlin-253108540238/wall-x-pt"                # Must set
 use_fast_tokenizer: True                       # True: train FAST, False: train Flow
 action_tokenizer_path: "/inspire/hdd/global_user/konghanlin-253108540238/fast_tokenizer"         # Must set if use_fast_tokenizer is true
-qwen_vl_act_config_path: "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/workspace/lerobot_example/aloha_mobile_cabinet/qwen25_config.json"
+qwen_vl_act_config_path: "/data2/konghanlin/new_wallx/workspace/lerobot_example/aloha_mobile_cabinet/qwen25_config.json"
 
 
 # Torch Profile
@@ -62,7 +62,7 @@ agent_pos_config:
 #   ckpt: "/path/to/resume_model/"
 #   load_ckpt_only: true
 
-norm_stats_path: "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/workspace/lerobot_example/aloha_mobile_cabinet/norm_stats.json"
+norm_stats_path: "/data2/konghanlin/new_wallx/workspace/lerobot_example/aloha_mobile_cabinet/norm_stats.json"
 
 enable_customized_robot_config: true
 customized_robot_config:

@@ -37,7 +37,7 @@ torch_compile: False
 #   ckpt: "/path/to/resume_model/"
 #   load_ckpt_only: true
 
-norm_stats_path: "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/workspace/lerobot_example/UAV_train/norm_stats.json"
+norm_stats_path: "/data2/konghanlin/new_wallx/workspace/lerobot_example/UAV_train/norm_stats.json"
 
 enable_customized_robot_config: true
 customized_robot_config:

@@ -81,6 +81,7 @@ class X2RDataProcessingConfig:
     resolution: Dict[str, int] = field(
         default_factory=lambda: {
             "face_view": -1,
+            "first_face_view": -1,
             "left_wrist_view": 128,
             "right_wrist_view": 128,
         }

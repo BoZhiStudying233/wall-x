@@ -86,17 +86,21 @@ class PreprocessedDataset(Dataset[T_co]):
 
     def _vision_preprocess(self, frames):
         processed_frames = []
+        print("self.hf_dataset.meta.camera_keys:",self.hf_dataset.meta.camera_keys)
         for key in self.hf_dataset.meta.camera_keys:
             from PIL import Image
-
+            # print("key:",key)
             current_obs = frames[key].clone().permute(1, 2, 0)
-
+            # print("1")
             img_pil = Image.fromarray((current_obs * 255).to(torch.uint8).cpu().numpy())
+            # print("2")
             orig_width, orig_height = img_pil.size
+            # print("3")
             # 2. Apply resolution constraints (if config is not -1)
             target_size = self.data_config.resolution.get(
                 self._cam_key_mapping[key], -1
             )
+            # print("4")
             if target_size != -1:
                 # Maintain aspect ratio logic
                 if orig_width > orig_height:  # Landscape image
@@ -106,7 +110,7 @@ class PreprocessedDataset(Dataset[T_co]):
                     new_height = target_size
                     new_width = int(target_size * orig_width / orig_height)
                 img_pil = img_pil.resize((new_width, new_height))
-
+            # print("5")
             # 3. Apply smart scaling (qwen logic)
             current_width, current_height = img_pil.size
             resized_height, resized_width = smart_resize(
@@ -116,14 +120,21 @@ class PreprocessedDataset(Dataset[T_co]):
                 min_pixels=self.data_config.min_pixels,
                 max_pixels=self.data_config.max_pixels,
             )
+            # print("6")
             resized_img = img_pil.resize((resized_width, resized_height))
+            # print("7")
             processed_frames.append(resized_img)
-
+        print("len(processed_frames):",len(processed_frames))
         return processed_frames, orig_height, orig_width, resized_height, resized_width
 
     def __getitem__(self, index):
         data = self._dataset[index]
+        print("data:",data)
+
+        print("_dataset:",len(self._dataset))
+
         image_inputs, h, w, resize_h, resize_w = self._vision_preprocess(data)
+        print("到这了？")
         agent_pos = data[self._state_key_mapping["state"]]
         action = data[self._action_key_mapping["action"]]
         frame_index = data["frame_index"]
@@ -329,8 +340,8 @@ class DataCollator:
         x = (action - min_stat) / delta
         x = x * 2 - 1
         x = torch.clamp(x, -1, 1)
-        # return x
-        return action
+        return x
+        # return action
 
     def __call__(self, batch):
         additional_inputs = {}

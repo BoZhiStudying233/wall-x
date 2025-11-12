@@ -5,10 +5,10 @@
 log_name: "robotic_training"
 log_project: "vla_training"
 model_type: wall-oss
-pretrained_wallx_path: "/inspire/hdd/global_user/konghanlin-253108540238/VLA_pt/wall-oss-fast-withMOE"  # Must set
-save_path: "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/wall_pt/wall-oss-fast-withMOE"                # Must set
+pretrained_wallx_path: "/data2/konghanlin/new_wallx/ori_model/wall-oss-fast"  # Must set
+save_path: "/data2/konghanlin/new_wallx/wall_pt/wall-oss-fast-withMOE"                # Must set
 use_fast_tokenizer: True                       # True: train FAST, False: train Flow
-action_tokenizer_path: "/inspire/hdd/global_user/konghanlin-253108540238/fast_tokenizer"         # Must set if use_fast_tokenizer is true
+action_tokenizer_path: "/data2/konghanlin/new_wallx/fast_tokenizer"         # Must set if use_fast_tokenizer is true
 
 # Torch Profile
 profile: False
