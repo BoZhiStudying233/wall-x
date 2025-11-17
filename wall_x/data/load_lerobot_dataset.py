@@ -86,7 +86,7 @@ class PreprocessedDataset(Dataset[T_co]):
 
     def _vision_preprocess(self, frames):
         processed_frames = []
-        print("self.hf_dataset.meta.camera_keys:",self.hf_dataset.meta.camera_keys)
+        # print("self.hf_dataset.meta.camera_keys:",self.hf_dataset.meta.camera_keys)
         for key in self.hf_dataset.meta.camera_keys:
             from PIL import Image
             # print("key:",key)
@@ -124,17 +124,17 @@ class PreprocessedDataset(Dataset[T_co]):
             resized_img = img_pil.resize((resized_width, resized_height))
             # print("7")
             processed_frames.append(resized_img)
-        print("len(processed_frames):",len(processed_frames))
+        # print("len(processed_frames):",len(processed_frames))
         return processed_frames, orig_height, orig_width, resized_height, resized_width
 
     def __getitem__(self, index):
         data = self._dataset[index]
-        print("data:",data)
+        # print("data:",data)
 
-        print("_dataset:",len(self._dataset))
+        # print("_dataset:",len(self._dataset))
 
         image_inputs, h, w, resize_h, resize_w = self._vision_preprocess(data)
-        print("到这了？")
+        # print("到这了？")
         agent_pos = data[self._state_key_mapping["state"]]
         action = data[self._action_key_mapping["action"]]
         frame_index = data["frame_index"]
@@ -340,8 +340,8 @@ class DataCollator:
         x = (action - min_stat) / delta
         x = x * 2 - 1
         x = torch.clamp(x, -1, 1)
-        return x
-        # return action
+        # return x
+        return action
 
     def __call__(self, batch):
         additional_inputs = {}

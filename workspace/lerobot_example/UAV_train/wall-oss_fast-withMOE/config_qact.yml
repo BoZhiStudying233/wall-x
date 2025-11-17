@@ -5,10 +5,10 @@
 log_name: "robotic_training"
 log_project: "vla_training"
 model_type: wall-oss
-pretrained_wallx_path: "/data2/konghanlin/new_wallx/ori_model/wall-oss-fast-withMOE"  # Must set
-save_path: "/data2/konghanlin/new_wallx/wall_pt/wall-oss-fast-withMOE"                # Must set
+pretrained_wallx_path: "/inspire/hdd/global_user/konghanlin-253108540238/VLA_pt/wall-oss-fast-withMOE"  # Must set
+save_path: "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/wallx_pt/wall-oss-fast-MOE-2frames-noNormalize"                # Must set
 use_fast_tokenizer: True                       # True: train FAST, False: train Flow
-action_tokenizer_path: "/data2/konghanlin/new_wallx/fast_tokenizer"         # Must set if use_fast_tokenizer is true
+action_tokenizer_path: "/inspire/hdd/global_user/konghanlin-253108540238/fast_tokenizer"         # Must set if use_fast_tokenizer is true
 
 # Torch Profile
 profile: False
@@ -19,12 +19,12 @@ profile_active_iters: 2
 
 # Training hyperparameters
 num_warmup_steps: 100
-num_training_steps: 64000000
+num_training_steps: 640000
 learning_rate: 0.00005
 min_lr: 0.00005
-num_epoch: 100
+num_epoch: 10
 gradient_accumulation_steps: 1
-batch_size_per_gpu: 1
+batch_size_per_gpu: 4
 padding_side: left
 epoch_save_interval: 1
 
@@ -37,7 +37,7 @@ torch_compile: False
 #   ckpt: "/path/to/resume_model/"
 #   load_ckpt_only: true
 
-norm_stats_path: "/data2/konghanlin/new_wallx/datasets/lerobot_datasets/dzb/our_data_train/norm_stats.json"
+norm_stats_path: "/inspire/hdd/global_user/konghanlin-253108540238/user_cache/lerobot/dzb/our_data_train/norm_stats.json"
 
 enable_customized_robot_config: true
 customized_robot_config:
@@ -83,4 +83,6 @@ data:
 
   # Image resolution configuration for different camera views
   resolution:
-    face_view: 480
+    current_view: 256
+    inital_view: 256
+

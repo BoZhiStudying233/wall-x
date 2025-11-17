@@ -55,15 +55,16 @@ KEY_MAPPINGS = {
     },
     "dzb/our_data_test": {
         "camera": {
-            "video.front": "face_view",    
+            "video.front": "current_view",
+            "video.front_first": "initial_view",
         },
         "state": "state",
         "action": "action"
     },
     "dzb/our_data_train": {
         "camera": {
-            "video.front": "face_view",
-            "video.front_first": "first_face_view",
+            "video.front": "current_view",
+            "video.front_first": "initial_view",
         },
         "state": "state",
         "action": "action"

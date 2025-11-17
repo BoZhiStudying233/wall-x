@@ -84,6 +84,8 @@ class X2RDataProcessingConfig:
             "first_face_view": -1,
             "left_wrist_view": 128,
             "right_wrist_view": 128,
+            "current_view": -1, 
+            "initial_view": -1,
         }
     )
 

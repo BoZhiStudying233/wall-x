@@ -114,7 +114,7 @@ class Normalizer(nn.Module):
             new_xs.append(x)
 
         new_xs = torch.stack(new_xs)
-        return new_xs
+        return xs
 
     def unnormalize_data(self, xs, dataset_names, dof_mask=None):
         """
