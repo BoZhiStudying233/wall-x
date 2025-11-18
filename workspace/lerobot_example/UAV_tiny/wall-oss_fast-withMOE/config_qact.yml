@@ -6,7 +6,7 @@ log_name: "robotic_training"
 log_project: "vla_training"
 model_type: wall-oss
 pretrained_wallx_path: "/inspire/hdd/global_user/konghanlin-253108540238/VLA_pt/wall-oss-fast-withMOE"  # Must set
-save_path: "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/wall_pt/wall-oss-fast-withMOE"                # Must set
+save_path: "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/wallx_pt/wall-oss-fast-MOE-tiny"                # Must set
 use_fast_tokenizer: True                       # True: train FAST, False: train Flow
 action_tokenizer_path: "/inspire/hdd/global_user/konghanlin-253108540238/fast_tokenizer"         # Must set if use_fast_tokenizer is true
 
@@ -19,19 +19,19 @@ profile_active_iters: 2
 
 # Training hyperparameters
 num_warmup_steps: 100
-num_training_steps: 64000000
+num_training_steps: 640000
 learning_rate: 0.00005
 min_lr: 0.00005
 num_epoch: 10
 gradient_accumulation_steps: 1
-batch_size_per_gpu: 4
+batch_size_per_gpu: 8
 padding_side: left
 epoch_save_interval: 1
 
 # Training optimization settings
 FSDP2: True
 torch_compile: False
-
+# num_workers: 0
 # # Checkpoint resuming configuration
 # resume:
 #   ckpt: "/path/to/resume_model/"
@@ -41,7 +41,7 @@ norm_stats_path: "/inspire/hdd/global_user/konghanlin-253108540238/user_cache/le
 
 enable_customized_robot_config: true
 customized_robot_config:
-  name: "dzb/our_data_test"
+  name: "dzb/our_data_tiny"
   customized_dof_config:
     "position" : 3
     "rotation" : 3
@@ -56,7 +56,7 @@ data:
 
   # LeRobot dataset configuration
   lerobot_config:
-    repo_id: "dzb/our_data_test"
+    repo_id: "dzb/our_data_tiny"
     root: null
     episodes: null
     image_transforms: null
@@ -84,4 +84,3 @@ data:
   # Image resolution configuration for different camera views
   resolution:
     face_view: 480
-    first_face_view: 480

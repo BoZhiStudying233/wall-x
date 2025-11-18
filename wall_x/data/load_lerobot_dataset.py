@@ -329,8 +329,8 @@ class DataCollator:
         x = (action - min_stat) / delta
         x = x * 2 - 1
         x = torch.clamp(x, -1, 1)
-        # return x
-        return action
+        return x
+        # return action
 
     def __call__(self, batch):
         additional_inputs = {}

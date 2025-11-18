@@ -55,7 +55,8 @@ KEY_MAPPINGS = {
     },
     "dzb/our_data_test": {
         "camera": {
-            "video.front": "face_view",    
+            "video.front": "face_view",
+            "video.front_first": "first_face_view",
         },
         "state": "state",
         "action": "action"
@@ -71,6 +72,7 @@ KEY_MAPPINGS = {
 
 CAMERA_NAME_MAPPING = {
     "face_view": "front view",
+    "first_face_view": "first front view",
     "left_wrist_view": "left wrist view",
     "right_wrist_view": "right wrist view",
     "move1_view": "move view",
@@ -517,6 +519,7 @@ def get_wallx_normal_text(
     user_request = f"{role_start_symbol}user\nObservation:"
     if cam_mapping:
         for _, cam_name in cam_mapping.items():
+            # print("cam_name:", cam_name)
             view_name = CAMERA_NAME_MAPPING.get(cam_name, cam_name)
             user_request += f" {view_name}: {vision_start_symbol}{image_pad_symbol}{vision_end_symbol}"
     user_request += "\nInstruction:"

@@ -29,10 +29,10 @@ if __name__ == "__main__":
     origin_action_dim = args.origin_action_dim
     pred_horizon = args.pred_horizon
 
-    model_path = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/wall_pt/wall-oss-fast-withMOE/9/processor"
+    model_path = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/wallx_pt/wall-oss-fast-MOE-tiny/2/processor"
     action_tokenizer_path = "/inspire/hdd/global_user/konghanlin-253108540238/fast_tokenizer"
-    save_dir = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/open_loop_figs/draw_openloop_plot_wall-oss-fast-withMOE_forUAVtest"
-    path = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/workspace/lerobot_example/UAV_test/wall-oss_fast-withMOE/config_qact.yml"
+    save_dir = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/open_loop_figs/draw_openloop_plot_wall-oss-fast-MOE_forUAVtiny"
+    path = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/workspace/lerobot_example/UAV_tiny/wall-oss_fast-withMOE/config_qact.yml"
     config = load_config(path)
 
     # load model with customized robot config
@@ -44,7 +44,7 @@ if __name__ == "__main__":
     # get test dataloader
     dataload_config = get_data_configs(config["data"])
     lerobot_config = dataload_config.get("lerobot_config", {})
-    dataset = load_test_dataset(config, lerobot_config, episode = list(range(50)),seed=42)
+    dataset = load_test_dataset(config, lerobot_config, episode = list(range(2)),seed=42)
     dataloader = dataset.get_dataloader()
 
     total_frames = len(dataloader)
@@ -76,12 +76,12 @@ if __name__ == "__main__":
                 plt.title("XY Trajectory Comparison (lerobot)")
 
                 # Ground truth trajectory
-                plt.plot(gt_traj_np[:step, 0], gt_traj_np[:step, 1], '-o', label='Ground Truth', alpha=0.7)
+                plt.plot(gt_traj_np[5:step, 0], gt_traj_np[5:step, 1], '-o', label='Ground Truth', alpha=0.7)
                 # Predicted trajectory
-                plt.plot(pred_traj_np[:step, 0], pred_traj_np[:step, 1], '-o', label='Prediction', alpha=0.7)
+                plt.plot(pred_traj_np[5:step, 0], pred_traj_np[5:step, 1], '-o', label='Prediction', alpha=0.7)
 
                 # 标出编号（step index）
-                for i in range(0, step):
+                for i in range(5, step):
                     plt.text(gt_traj_np[i, 0], gt_traj_np[i, 1], str(i), fontsize=8, color='blue')
                     plt.text(pred_traj_np[i, 0], pred_traj_np[i, 1], str(i), fontsize=8, color='orange')
 

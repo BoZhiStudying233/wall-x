@@ -29,7 +29,7 @@ if __name__ == "__main__":
     origin_action_dim = args.origin_action_dim
     pred_horizon = args.pred_horizon
 
-    model_path = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/wall_pt/wall-oss-fast-withMOE/5/processor"
+    model_path = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/wall_pt/wall-oss-fast-withMOE/0/processor"
     action_tokenizer_path = "/inspire/hdd/global_user/konghanlin-253108540238/fast_tokenizer"
     save_dir = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/open_loop_figs/wall-oss-fast-withMOE"
     path = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/workspace/lerobot_example/UAV_train/wall-oss_fast-withMOE/config_qact.yml"
