@@ -92,6 +92,7 @@ class Normalizer(nn.Module):
             torch.Tensor: Normalized action data in [-1, 1] range
         """
         new_xs = []
+        
         # Filter out multimodal dataset entries
         dataset_names = [name for name in dataset_names if name != "x2_multimodal"]
         dof_mask = dof_mask if dof_mask is not None else [None] * len(xs)
@@ -114,7 +115,8 @@ class Normalizer(nn.Module):
             new_xs.append(x)
 
         new_xs = torch.stack(new_xs)
-        return new_xs
+        # return new_xs
+        return xs
 
     def unnormalize_data(self, xs, dataset_names, dof_mask=None):
         """
@@ -153,8 +155,8 @@ class Normalizer(nn.Module):
             new_xs.append(x)
 
         new_xs = torch.stack(new_xs)
-        return new_xs
-        # return xs
+        # return new_xs
+        return xs
 
 
 class SinusoidalPosEmb(nn.Module):

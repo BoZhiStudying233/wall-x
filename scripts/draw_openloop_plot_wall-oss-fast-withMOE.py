@@ -29,7 +29,7 @@ if __name__ == "__main__":
     origin_action_dim = args.origin_action_dim
     pred_horizon = args.pred_horizon
 
-    model_path = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/wall_pt/wall-oss-fast-withMOE/0/processor"
+    model_path = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/wall_pt/wall-oss-fast-withMOE_train/yi/9/processor"
     action_tokenizer_path = "/inspire/hdd/global_user/konghanlin-253108540238/fast_tokenizer"
     save_dir = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/open_loop_figs/wall-oss-fast-withMOE"
     path = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/workspace/lerobot_example/UAV_train/wall-oss_fast-withMOE/config_qact.yml"
@@ -63,7 +63,7 @@ if __name__ == "__main__":
     for idx, batch in tqdm(
         enumerate(dataloader), total=total_frames, desc="predicting"
     ):
-        if torch.equal(batch.data['action_chunk'][0][0], batch.data['action_chunk'][0][1]) or (idx == total_frames-1):
+        if (torch.equal(batch.data['action_chunk'][0][0], batch.data['action_chunk'][0][1]) and step!=0) or (idx == total_frames-1):
             if idx != 0:
                 gt_traj_np = gt_traj.numpy()
                 pred_traj_np = pred_traj.numpy()
@@ -76,12 +76,12 @@ if __name__ == "__main__":
                 plt.title("XY Trajectory Comparison (lerobot)")
 
                 # Ground truth trajectory
-                plt.plot(gt_traj_np[:step, 0], gt_traj_np[:step, 1], '-o', label='Ground Truth', alpha=0.7)
+                plt.plot(gt_traj_np[5:step, 0], gt_traj_np[5:step, 1], '-o', label='Ground Truth', alpha=0.7)
                 # Predicted trajectory
-                plt.plot(pred_traj_np[:step, 0], pred_traj_np[:step, 1], '-o', label='Prediction', alpha=0.7)
+                plt.plot(pred_traj_np[5:step, 0], pred_traj_np[5:step, 1], '-o', label='Prediction', alpha=0.7)
 
                 # 标出编号（step index）
-                for i in range(0, step):
+                for i in range(5, step):
                     plt.text(gt_traj_np[i, 0], gt_traj_np[i, 1], str(i), fontsize=8, color='blue')
                     plt.text(pred_traj_np[i, 0], pred_traj_np[i, 1], str(i), fontsize=8, color='orange')
 

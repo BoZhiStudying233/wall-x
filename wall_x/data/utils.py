@@ -63,7 +63,8 @@ KEY_MAPPINGS = {
     },
     "dzb/our_data_train": {
         "camera": {
-            "video.front": "face_view",    
+            "video.front": "face_view",
+            "video.front_first": "first_face_view",
         },
         "state": "state",
         "action": "action"

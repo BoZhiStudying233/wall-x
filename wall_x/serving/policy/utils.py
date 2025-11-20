@@ -214,7 +214,7 @@ def format_text_with_vision_tokens(
     camera_name_mapping = {
         "front_view": "front view",
         "face_view": "front view",
-        # "first_face_view": "first front view",
+        "first_face_view": "first front view",
         "left_wrist_view": "left wrist view",
         "right_wrist_view": "right wrist view",
         "top_view": "top view",

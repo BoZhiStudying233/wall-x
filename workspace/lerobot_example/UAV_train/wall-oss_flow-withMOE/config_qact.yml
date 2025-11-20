@@ -83,4 +83,5 @@ data:
 
   # Image resolution configuration for different camera views
   resolution:
-    face_view: 480
+    face_view: 256
+    first_face_view: 256
