@@ -276,3 +276,5 @@ user_cache/
 .sii/
 .github/
 core.*
+fast-tokenizer/
+datasets/

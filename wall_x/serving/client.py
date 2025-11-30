@@ -5,6 +5,8 @@ Example client for Wall-X model server with sync support.
 This script demonstrates how to connect to a Wall-X server and request
 action predictions from observations in both sync and async contexts.
 """
+import sys
+sys.path.insert(0, "/home/bozhi/Desktop/wall-x")
 
 import asyncio
 import logging
@@ -186,39 +188,45 @@ class WallXClient:
 
 def prepare_batch_sync(data, normalizer_action, normalizer_propri, dataset_names):
     """Synchronous version of prepare_batch."""
-    image = (data["image"].permute(1, 2, 0) * 255).to(torch.uint8).cpu().numpy()
-    wrist_image = (
-        (data["wrist_image"].permute(1, 2, 0) * 255).to(torch.uint8).cpu().numpy()
+    print("data_keys:", data.keys())
+    image1 = (data["video.front"].permute(1, 2, 0) * 255).to(torch.uint8).cpu().numpy()
+    image2 = (
+        (data["video.front_first"].permute(1, 2, 0) * 255).to(torch.uint8).cpu().numpy()
     )
+
+    # 添加调试信息
+    print(f"[DEBUG] image1 shape: {image1.shape}, dtype: {image1.dtype}")
+    print(f"[DEBUG] image2 shape: {image2.shape}, dtype: {image2.dtype}")
     prompt = data["task"]
 
     state = data["state"].to("cuda")
     if state.dim() == 1:
         state = state.unsqueeze(0)
 
-    state_mask = torch.ones([1, 32, 20]).to("cuda")
-    state_mask[:, :, 8:] = 0
+    state_mask = torch.zeros([1, 5, 20]).to("cuda")  # 改为 pred_horizon=5, state_dim=6
+    state_mask[:, :, :6] = 1  # 将前 6 维设置为 1
 
     state = normalizer_propri.normalize_data(state, dataset_names, state_mask)
     state = state.cpu().numpy().astype(np.float32)
 
     obs = {
-        "front_view": image,
-        "left_wrist_view": wrist_image,
+        "face_view": image1,  # 改为与 server camera_key 匹配
+        "first_face_view": image2,
         "prompt": prompt,
         "state": state,
         "dataset_names": dataset_names,
     }
     return obs
 
-
 def init_serving_sample_dataset(train_config):
+    """Load local dataset to get observations for inference."""
     repo_id = train_config["data"]["lerobot_config"]["repo_id"]
 
     meta_info = LeRobotDatasetMetadata(repo_id)
     dataset_fps = meta_info.fps
+    # 改为 pred_horizon=5
     delta_timestamps = {
-        "actions": [t / dataset_fps for t in range(32)],
+        "action": [t / dataset_fps for t in range(5)],
     }
     dataset = LeRobotDataset(
         repo_id,
@@ -228,9 +236,6 @@ def init_serving_sample_dataset(train_config):
     )
 
     return dataset, repo_id
-
-
-# ============ Synchronous version of main function ============
 
 
 def main_sync(args):
@@ -245,15 +250,11 @@ def main_sync(args):
     total_frames = len(dataset)
     gt_traj = np.zeros((total_frames, args.action_dim))
     pred_traj = np.zeros((total_frames, args.action_dim))
-    import torch
-
-    dof_mask = torch.ones([1, 32, 20]).to("cuda")
-    dof_mask[:, :, args.action_dim :] = 0
 
     # Synchronous processing
     for idx, data in enumerate(dataset):
         if idx % args.pred_horizon == 0 and idx + args.pred_horizon < total_frames:
-            print(f"Processing frame {idx}")
+            print(f"Processing frame {idx}/{total_frames}")
             obs = prepare_batch_sync(
                 data,
                 client.normalizer_action,
@@ -262,28 +263,32 @@ def main_sync(args):
             )
             response = client.predict_sync(obs)
             pred_action = response["action"]
+            # pred_action shape: [pred_horizon, action_dim]
             pred_traj[idx : idx + args.pred_horizon] = pred_action
-            gt_traj[idx : idx + args.pred_horizon] = data["actions"]
+            gt_traj[idx : idx + args.pred_horizon] = data["action"].cpu().numpy()
+
+
+            # gt_traj[idx : idx + args.pred_horizon] = data["actions"].cpu().numpy()
 
     # Draw plot
     timesteps = gt_traj.shape[0]
     fig, axs = plt.subplots(
         args.action_dim, 1, figsize=(15, 5 * args.action_dim), sharex=True
     )
-    fig.suptitle("Action Comparison for lerobot", fontsize=16)
+    fig.suptitle("Action Comparison: Server Prediction vs Ground Truth", fontsize=16)
 
     for i in range(args.action_dim):
-        axs[i].plot(range(timesteps), gt_traj[:, i], label="Ground Truth")
-        axs[i].plot(range(timesteps), pred_traj[:, i], label="Prediction")
+        axs[i].plot(range(timesteps), gt_traj[:, i], label="Ground Truth", marker='o', markersize=2)
+        axs[i].plot(range(timesteps), pred_traj[:, i], label="Server Prediction", marker='s', markersize=2)
         axs[i].set_ylabel(f"Action Dim {i+1}")
         axs[i].legend()
-        axs[i].grid(True)
+        axs[i].grid(True, alpha=0.3)
 
     axs[-1].set_xlabel("Timestep")
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     os.makedirs(args.save_dir, exist_ok=True)
-    save_path = os.path.join(args.save_dir, "lerobot_comparison_serving.png")
-    plt.savefig(save_path)
+    save_path = os.path.join(args.save_dir, "server_prediction_comparison.png")
+    plt.savefig(save_path, dpi=150)
     print(f"Saved plot to {save_path}")
     plt.close()
 
@@ -291,10 +296,8 @@ def main_sync(args):
     client.close_sync()
 
 
-# ============ Asynchronous version of main function (keep original functionality) ============
-
-
 async def main(args):
+    """Asynchronous version of main function."""
     client = WallXClient(args.config_path, uri=args.uri)
     await client.connect()
     dataset, repo_id = init_serving_sample_dataset(client.train_config)
@@ -305,7 +308,7 @@ async def main(args):
 
     for idx, data in enumerate(dataset):
         if idx % args.pred_horizon == 0 and idx + args.pred_horizon < total_frames:
-            print(f"Processing frame {idx}")
+            print(f"Processing frame {idx}/{total_frames}")
             obs = prepare_batch_sync(
                 data,
                 client.normalizer_action,
@@ -314,67 +317,72 @@ async def main(args):
             )
             response = await client.predict(obs)
             pred_action = response["action"]
-            print(pred_action.shape)
             pred_traj[idx : idx + args.pred_horizon] = pred_action
-            gt_traj[idx : idx + args.pred_horizon] = data["actions"]
+            # gt_traj[idx : idx + args.pred_horizon] = data["            data["actions"] = data["action"]"].cpu().numpy()
+            gt_traj[idx : idx + args.pred_horizon] = data["action"].cpu().numpy()
+
 
     timesteps = gt_traj.shape[0]
 
     fig, axs = plt.subplots(
         args.action_dim, 1, figsize=(15, 5 * args.action_dim), sharex=True
     )
-    fig.suptitle("Action Comparison for lerobot", fontsize=16)
+    fig.suptitle("Action Comparison: Server Prediction vs Ground Truth", fontsize=16)
 
     for i in range(args.action_dim):
-        axs[i].plot(range(timesteps), gt_traj[:, i], label="Ground Truth")
-        axs[i].plot(range(timesteps), pred_traj[:, i], label="Prediction")
+        axs[i].plot(range(timesteps), gt_traj[:, i], label="Ground Truth", marker='o', markersize=2)
+        axs[i].plot(range(timesteps), pred_traj[:, i], label="Server Prediction", marker='s', markersize=2)
         axs[i].set_ylabel(f"Action Dim {i+1}")
         axs[i].legend()
-        axs[i].grid(True)
+        axs[i].grid(True, alpha=0.3)
 
     axs[-1].set_xlabel("Timestep")
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])
     os.makedirs(args.save_dir, exist_ok=True)
-    save_path = os.path.join(args.save_dir, "lerobot_comparison_serving.png")
-    plt.savefig(save_path)
+    save_path = os.path.join(args.save_dir, "server_prediction_comparison.png")
+    plt.savefig(save_path, dpi=150)
     print(f"Saved plot to {save_path}")
     plt.close()
 
+    await client.close()
+
 
 if __name__ == "__main__":
-    """Asynchronous version of main function."""
+    """Main entry point."""
     import argparse
 
-    parser = argparse.ArgumentParser(description="Wall-X client examples")
-    parser.add_argument(
-        "--example",
-        choices=["single", "multiple", "benchmark"],
-        default="single",
-        help="Example to run",
-    )
+    parser = argparse.ArgumentParser(description="Wall-X client for server testing")
     parser.add_argument(
         "--uri",
         default="ws://localhost:8000",
-        help="Server URI",
+        help="Server WebSocket URI",
     )
     parser.add_argument(
-        "--pred_horizon", type=int, default=32, help="Prediction horizon"
+        "--pred_horizon", 
+        type=int, 
+        default=5,  # 改为 5
+        help="Prediction horizon",
     )
-    parser.add_argument("--action_dim", type=int, default=7, help="Action dimension")
+    parser.add_argument(
+        "--action_dim", 
+        type=int, 
+        default=6,  # 改为 6
+        help="Action dimension",
+    )
     parser.add_argument(
         "--config_path",
-        default="/x2robot_v2/vincent/workspace/opensource/cfg/config_from_qwen_libero.yml",
+        default="/home/bozhi/Desktop/wall-x/workspace/lerobot_example/UAV_test/wall-oss_fast-noMOE/config_qact.yml",
         help="Train config path",
     )
     parser.add_argument(
         "--save_dir",
-        default="/x2robot_v2/vincent/workspace/opensource/plots/libero",
-        help="Save directory",
+        default="/home/bozhi/Desktop/wall-x/client_results",
+        help="Save directory for results",
     )
     args = parser.parse_args()
 
-    # Synchronous mode
+    # Synchronous mode (推荐用这个)
     main_sync(args)
 
-    # Asynchronous mode
+    # Asynchronous mode (可选)
     # asyncio.run(main(args))

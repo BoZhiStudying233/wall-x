@@ -23,6 +23,9 @@ python -m wall_x.serving.launch_serving \
   --model-config.model-path /path/to/libero_model_stuff \
   --model-config.action-tokenizer-path /path/to/fast/ \
   --model-config.train-config-path /path/to/config.yml
+
+
+  
 ```
 
 ### Specify Environment
@@ -51,6 +54,21 @@ python -m wall_x.serving.launch_serving \
   --model-config.pred-horizon 32 \
   --model-config.camera-key front_view left_wrist_view \
   --port 8000
+
+我的：
+python -m wall_x.serving.launch_serving \
+  --port 8000 \
+  --host 0.0.0.0 \
+  model-config:model-config \
+    --model-config.model-path "/home/bozhi/Desktop/wall-x/models/wall-oss-fast-noMOE-forSim/processor" \
+    --model-config.action-tokenizer-path "/home/bozhi/Desktop/wall-x/fast-tokenizer" \
+    --model-config.train-config-path "/home/bozhi/Desktop/wall-x/workspace/lerobot_example/UAV_test/wall-oss_fast-noMOE/config_qact.yml" \
+    --model-config.action-dim 6 \
+    --model-config.state-dim 6 \
+    --model-config.camera-key face_view first_face_view \
+    --model-config.pred-horizon 5
+
+
 ```
 
 ## Command Line Arguments

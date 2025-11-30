@@ -1,1 +1,1 @@
-workspace/lerobot_example/evaluation/lerobot_openloop.png filter=lfs diff=lfs merge=lfs -text
+workspace/lerobot_example/evaluation/lerobot_openloop.png -text

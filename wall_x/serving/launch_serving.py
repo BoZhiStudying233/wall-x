@@ -6,8 +6,13 @@ This script serves a Wall-X model using a websocket server, allowing
 clients to connect and get action predictions from observations.
 
 Based on the OpenPI serve_policy.py script structure.
+
+需要在wall-x目录下运行才行
+python -m wall_x.serving.launch_serving   --port 8000   --host 0.0.0.0   model-config:model-config     --model-config.model-path "/home/bozhi/Desktop/wall-x/models/wall-oss-fast-noMOE-forSim/processor"     --model-config.action-tokenizer-path "/home/bozhi/Desktop/wall-x/fast-tokenizer"     --model-config.train-config-path "/home/bozhi/Desktop/wall-x/workspace/lerobot_example/UAV_test/wall-oss_fast-noMOE/config_qact.yml"     --model-config.action-dim 6     --model-config.state-dim 6     --model-config.camera-key face_view first_face_view     --model-config.pred-horizon 5
 """
 
+import sys
+sys.path.insert(0, "/home/bozhi/Desktop/wall-x")
 import dataclasses
 from dataclasses import field
 import enum

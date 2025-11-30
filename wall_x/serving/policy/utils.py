@@ -88,6 +88,7 @@ def prepare_batch(
     resized_images = process_images(
         processed_images, image_factor, min_pixels, max_pixels
     )
+    print("resized_images:", [img.size for img in resized_images])
 
     # Handle text prompt - format with vision tokens
     instruction = obs["prompt"]
@@ -166,10 +167,28 @@ def process_images(
     Returns:
         List of resized PIL Images
     """
-    resized_images = []
-    for img_pil in images:
-        current_width, current_height = img_pil.size
 
+
+    resized_images = []
+
+    for img_pil in images:
+        orig_width = 640
+        orig_height = 480
+        target_size = 256
+        print("target_size:", target_size)
+        if target_size != -1:
+            # Maintain aspect ratio logic
+            if orig_width > orig_height:  # Landscape image
+                new_width = target_size
+                new_height = int(target_size * orig_height / orig_width)
+            else:  # Portrait image
+                new_height = target_size
+                new_width = int(target_size * orig_width / orig_height)
+            img_pil = img_pil.resize((new_width, new_height))
+
+        
+        current_width, current_height = img_pil.size
+        print(f"Original image size: {current_width}x{current_height}")
         # Apply smart scaling (Qwen logic)
         resized_height, resized_width = smart_resize(
             current_height,
@@ -180,6 +199,7 @@ def process_images(
         )
 
         resized_img = img_pil.resize((resized_width, resized_height))
+        print(f"Resized image size: {resized_width}x{resized_height}")
         resized_images.append(resized_img)
 
     return resized_images

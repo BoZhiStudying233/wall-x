@@ -86,17 +86,20 @@ class PreprocessedDataset(Dataset[T_co]):
 
     def _vision_preprocess(self, frames):
         processed_frames = []
+        print("self.hf_dataset.meta.camera_keys:",self.hf_dataset.meta.camera_keys)
         for key in self.hf_dataset.meta.camera_keys:
             from PIL import Image
 
             current_obs = frames[key].clone().permute(1, 2, 0)
-
+            print("current_obs shape:", current_obs.shape)
             img_pil = Image.fromarray((current_obs * 255).to(torch.uint8).cpu().numpy())
             orig_width, orig_height = img_pil.size
+            print(f"Original image size for {key}: ({orig_width}, {orig_height})")
             # 2. Apply resolution constraints (if config is not -1)
             target_size = self.data_config.resolution.get(
                 self._cam_key_mapping[key], -1
             )
+            print("target_size:", target_size)
             if target_size != -1:
                 # Maintain aspect ratio logic
                 if orig_width > orig_height:  # Landscape image
@@ -116,6 +119,7 @@ class PreprocessedDataset(Dataset[T_co]):
                 min_pixels=self.data_config.min_pixels,
                 max_pixels=self.data_config.max_pixels,
             )
+            print(f"Resizing image from ({current_width}, {current_height}) to ({resized_width}, {resized_height})")
             resized_img = img_pil.resize((resized_width, resized_height))
             processed_frames.append(resized_img)
 
