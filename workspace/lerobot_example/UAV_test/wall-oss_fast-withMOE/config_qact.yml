@@ -37,7 +37,7 @@ torch_compile: False
 #   ckpt: "/path/to/resume_model/"
 #   load_ckpt_only: true
 
-norm_stats_path: "/home/bozhi/Desktop/wall-x/datasets/lerobot/dzb/our_data_test/norm_stats.json"
+norm_stats_path: "/home/bozhi/.cache/huggingface/lerobot/dzb/our_data_test/norm_stats.json"
 
 enable_customized_robot_config: true
 customized_robot_config:

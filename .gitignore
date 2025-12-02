@@ -278,3 +278,5 @@ user_cache/
 core.*
 fast-tokenizer/
 datasets/
+client_results/
+simlulate/

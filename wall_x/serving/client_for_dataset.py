@@ -5,6 +5,9 @@ Example client for Wall-X model server with sync support.
 This script demonstrates how to connect to a Wall-X server and request
 action predictions from observations in both sync and async contexts.
 """
+import sys
+sys.path.insert(0, "/home/bozhi/Desktop/wall-x")
+
 
 import asyncio
 import logging
@@ -184,51 +187,31 @@ class WallXClient:
         print("Normalizer initialized")
 
 
-# def prepare_batch_sync(data, normalizer_action, normalizer_propri, dataset_names):
-#     """Synchronous version of prepare_batch."""
-#     image = (data["image"].permute(1, 2, 0) * 255).to(torch.uint8).cpu().numpy()
-#     wrist_image = (
-#         (data["wrist_image"].permute(1, 2, 0) * 255).to(torch.uint8).cpu().numpy()
-#     )
-#     prompt = data["task"]
-
-#     state = data["state"].to("cuda")
-#     if state.dim() == 1:
-#         state = state.unsqueeze(0)
-
-#     state_mask = torch.ones([1, 32, 20]).to("cuda")
-#     state_mask[:, :, 8:] = 0
-
-#     state = normalizer_propri.normalize_data(state, dataset_names, state_mask)
-#     state = state.cpu().numpy().astype(np.float32)
-
-#     obs = {
-#         "front_view": image,
-#         "left_wrist_view": wrist_image,
-#         "prompt": prompt,
-#         "state": state,
-#         "dataset_names": dataset_names,
-#     }
-#     return obs
-
-
 def prepare_batch_sync(data, normalizer_action, normalizer_propri, dataset_names):
     """Synchronous version of prepare_batch."""
-    image1 = (data["face_view"].permute(1, 2, 0) * 255).to(torch.uint8).cpu().numpy()
+    # print("data_keys:", data.keys())
+    # print("image1 shape:", data["video.front"].shape)
+    image1 = (data["video.front"].permute(1, 2, 0) * 255).to(torch.uint8).cpu().numpy()
+    # print("10")
     image2 = (
-        (data["first_face_view"].permute(1, 2, 0) * 255).to(torch.uint8).cpu().numpy()
+        (data["video.front_first"].permute(1, 2, 0) * 255).to(torch.uint8).cpu().numpy()
     )
+    # print("9")
+    # 添加调试信息
+    # print(f"[DEBUG] image1 shape: {image1.shape}, dtype: {image1.dtype}")
+    # print(f"[DEBUG] image2 shape: {image2.shape}, dtype: {image2.dtype}")
     prompt = data["task"]
 
     state = data["state"].to("cuda")
     if state.dim() == 1:
         state = state.unsqueeze(0)
 
-    state_mask = torch.ones([1, 5, 6]).to("cuda")  # 改为 pred_horizon=5, state_dim=6
+    state_mask = torch.zeros([1, 5, 20]).to("cuda")  # 改为 pred_horizon=5, state_dim=6
+    state_mask[:, :, :6] = 1  # 将前 6 维设置为 1
 
     state = normalizer_propri.normalize_data(state, dataset_names, state_mask)
     state = state.cpu().numpy().astype(np.float32)
-
+    # print("8")
     obs = {
         "face_view": image1,  # 改为与 server camera_key 匹配
         "first_face_view": image2,
@@ -244,11 +227,11 @@ def init_serving_sample_dataset(train_config):
     meta_info = LeRobotDatasetMetadata(repo_id)
     dataset_fps = meta_info.fps
     delta_timestamps = {
-        "actions": [t / dataset_fps for t in range(32)],
+        "action": [t / dataset_fps for t in range(5)],
     }
     dataset = LeRobotDataset(
         repo_id,
-        episodes=[0],
+        episodes=range(18),
         delta_timestamps=delta_timestamps,
         video_backend="pyav",
     )
@@ -273,13 +256,103 @@ def main_sync(args):
     pred_traj = np.zeros((total_frames, args.action_dim))
     import torch
 
-    dof_mask = torch.ones([1, 32, 20]).to("cuda")
+    dof_mask = torch.ones([1, 5, 20]).to("cuda")
     dof_mask[:, :, args.action_dim :] = 0
+
+    step = 0
+    pred_horizon = args.pred_horizon
+    pic = -1
 
     # Synchronous processing
     for idx, data in enumerate(dataset):
-        if idx % args.pred_horizon == 0 and idx + args.pred_horizon < total_frames:
-            print(f"Processing frame {idx}")
+        print("data[\"action\"]:", data["action"][0], "data[\"task\"]:", data["task"],"  idx:",idx)
+        if (torch.equal(data['action'][0], data['action'][1]) and step!=0) or (idx == total_frames-1):
+            # 只可视化前两个维度的 XY 轨迹并显示关键点编号
+            timesteps = gt_traj.shape[0]
+
+            import matplotlib.pyplot as plt
+            import os
+
+
+            fig = plt.figure(figsize=(10, 10))
+            plt.title("XY Trajectory Comparison for lerobot", fontsize=16)
+
+            save_dir = r"/home/bozhi/Desktop/wall-x/client_results"
+            pic += 1
+            os.makedirs(save_dir, exist_ok=True)
+            save_path = os.path.join(save_dir, f"lerobot_xy_trajectory_points_{pic}.png")
+
+            
+            start_idx = 0
+            plt.plot(
+                gt_traj[start_idx:step, 0],
+                gt_traj[start_idx:step, 1],
+                "-o",
+                label="Ground Truth",
+                alpha=0.7,
+                color="blue"
+            )
+
+            # Predicted trajectory
+            plt.plot(
+                pred_traj[start_idx:step, 0],
+                pred_traj[start_idx:step, 1],
+                "-o",
+                label="Prediction",
+                alpha=0.7,
+                color="orange"
+            )
+
+            # 标出编号（step index）
+            for i in range(start_idx, step):
+                plt.text(
+                    gt_traj[i, 0],
+                    gt_traj[i, 1],
+                    str(i),
+                    fontsize=8,
+                    color="blue",
+                )
+                plt.text(
+                    pred_traj[i, 0],
+                    pred_traj[i, 1],
+                    str(i),
+                    fontsize=8,
+                    color="orange",
+                )
+
+
+            plt.xlabel("Action Dim 1 (X)")
+            plt.ylabel("Action Dim 2 (Y)")
+            plt.legend()
+            plt.axis("equal")
+            plt.tight_layout()
+            instruction_text = data["task"]
+            # 在图的整体坐标系上加说明文字
+            if instruction_text:
+                # 使用 fig.text，而不是 plt.text
+                fig.text(
+                    0.02,
+                    0.02,
+                    instruction_text,
+                    fontsize=6,
+                    color="black",
+                    wrap=True,
+                    ha="left",
+                    va="bottom",
+                )
+
+            # 高分辨率保存
+            plt.savefig(save_path, dpi=600, bbox_inches="tight")
+            print(f"Saved clearer XY trajectory plot to {save_path}")
+            plt.close()
+            step = 0
+            gt_traj = torch.zeros((total_frames, args.action_dim)).cpu().numpy()
+            pred_traj = torch.zeros((total_frames, args.action_dim)).cpu().numpy()
+            continue
+        if step % pred_horizon == 0 and step + pred_horizon < total_frames and step >=0:
+            if step == 0 and abs(data['action'][0][0])+abs(data['action'][0][1])>0.05:
+                continue
+            print("推理")
             obs = prepare_batch_sync(
                 data,
                 client.normalizer_action,
@@ -288,33 +361,18 @@ def main_sync(args):
             )
             response = client.predict_sync(obs)
             pred_action = response["action"]
-            pred_traj[idx : idx + args.pred_horizon] = pred_action
-            gt_traj[idx : idx + args.pred_horizon] = data["actions"]
+            if pred_action is None:
+                print("pred_action:",pred_action)
+                continue
+            pred_traj[step : step + args.pred_horizon] = pred_action
+            gt_traj[step : step + args.pred_horizon] = data["action"]
+            # print("gt_action:",data["action"])
+        step +=1
 
-    # Draw plot
-    timesteps = gt_traj.shape[0]
-    fig, axs = plt.subplots(
-        args.action_dim, 1, figsize=(15, 5 * args.action_dim), sharex=True
-    )
-    fig.suptitle("Action Comparison for lerobot", fontsize=16)
 
-    for i in range(args.action_dim):
-        axs[i].plot(range(timesteps), gt_traj[:, i], label="Ground Truth")
-        axs[i].plot(range(timesteps), pred_traj[:, i], label="Prediction")
-        axs[i].set_ylabel(f"Action Dim {i+1}")
-        axs[i].legend()
-        axs[i].grid(True)
+    
 
-    axs[-1].set_xlabel("Timestep")
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    os.makedirs(args.save_dir, exist_ok=True)
-    save_path = os.path.join(args.save_dir, "lerobot_comparison_serving.png")
-    plt.savefig(save_path)
-    print(f"Saved plot to {save_path}")
-    plt.close()
 
-    # Close connection
-    client.close_sync()
 
 
 # ============ Asynchronous version of main function (keep original functionality) ============
@@ -325,13 +383,39 @@ async def main(args):
     await client.connect()
     dataset, repo_id = init_serving_sample_dataset(client.train_config)
 
+    step = 0
+    pred_horizon = args.pred_horizon
     total_frames = len(dataset)
     gt_traj = np.zeros((total_frames, args.action_dim))
     pred_traj = np.zeros((total_frames, args.action_dim))
 
     for idx, data in enumerate(dataset):
-        if idx % args.pred_horizon == 0 and idx + args.pred_horizon < total_frames:
-            print(f"Processing frame {idx}")
+        if (torch.equal(data['action'][0], data['action'][1]) and step!=0) or (idx == total_frames-1):
+            timesteps = gt_traj.shape[0]
+
+            fig, axs = plt.subplots(
+                args.action_dim, 1, figsize=(15, 5 * args.action_dim), sharex=True
+            )
+            fig.suptitle("Action Comparison for lerobot", fontsize=16)
+
+            for i in range(args.action_dim):
+                axs[i].plot(range(timesteps), gt_traj[:, i], label="Ground Truth")
+                axs[i].plot(range(timesteps), pred_traj[:, i], label="Prediction")
+                axs[i].set_ylabel(f"Action Dim {i+1}")
+                axs[i].legend()
+                axs[i].grid(True)
+
+            axs[-1].set_xlabel("Timestep")
+            plt.tight_layout(rect=[0, 0.03, 1, 0.95])
+            os.makedirs(args.save_dir, exist_ok=True)
+            save_path = os.path.join(args.save_dir, "lerobot_comparison_serving.png")
+            plt.savefig(save_path)
+            print(f"Saved plot to {save_path}")
+            plt.close()
+            step = 0
+            continue
+        if step % pred_horizon == 0 and step + pred_horizon < total_frames and step >=0:
+
             obs = prepare_batch_sync(
                 data,
                 client.normalizer_action,
@@ -342,65 +426,48 @@ async def main(args):
             pred_action = response["action"]
             print(pred_action.shape)
             pred_traj[idx : idx + args.pred_horizon] = pred_action
-            gt_traj[idx : idx + args.pred_horizon] = data["actions"]
-
-    timesteps = gt_traj.shape[0]
-
-    fig, axs = plt.subplots(
-        args.action_dim, 1, figsize=(15, 5 * args.action_dim), sharex=True
-    )
-    fig.suptitle("Action Comparison for lerobot", fontsize=16)
-
-    for i in range(args.action_dim):
-        axs[i].plot(range(timesteps), gt_traj[:, i], label="Ground Truth")
-        axs[i].plot(range(timesteps), pred_traj[:, i], label="Prediction")
-        axs[i].set_ylabel(f"Action Dim {i+1}")
-        axs[i].legend()
-        axs[i].grid(True)
-
-    axs[-1].set_xlabel("Timestep")
-    plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-    os.makedirs(args.save_dir, exist_ok=True)
-    save_path = os.path.join(args.save_dir, "lerobot_comparison_serving.png")
-    plt.savefig(save_path)
-    print(f"Saved plot to {save_path}")
-    plt.close()
+            gt_traj[idx : idx + args.pred_horizon] = data["action"]
+        step +=1
+    
 
 
 if __name__ == "__main__":
-    """Asynchronous version of main function."""
+    """Main entry point."""
     import argparse
 
-    parser = argparse.ArgumentParser(description="Wall-X client examples")
-    parser.add_argument(
-        "--example",
-        choices=["single", "multiple", "benchmark"],
-        default="single",
-        help="Example to run",
-    )
+    parser = argparse.ArgumentParser(description="Wall-X client for server testing")
     parser.add_argument(
         "--uri",
         default="ws://localhost:8000",
-        help="Server URI",
+        help="Server WebSocket URI",
+    )
+
+    parser.add_argument(
+        "--pred_horizon", 
+        type=int, 
+        default=5,  # 改为 5
+        help="Prediction horizon",
     )
     parser.add_argument(
-        "--pred_horizon", type=int, default=32, help="Prediction horizon"
+        "--action_dim", 
+        type=int, 
+        default=6,  # 改为 6
+        help="Action dimension",
     )
-    parser.add_argument("--action_dim", type=int, default=7, help="Action dimension")
     parser.add_argument(
         "--config_path",
-        default="/x2robot_v2/vincent/workspace/opensource/cfg/config_from_qwen_libero.yml",
+        default="/home/bozhi/Desktop/wall-x/workspace/lerobot_example/UAV_test/wall-oss_fast-withMOE/config_qact.yml",
         help="Train config path",
     )
     parser.add_argument(
         "--save_dir",
-        default="/x2robot_v2/vincent/workspace/opensource/plots/libero",
-        help="Save directory",
+        default="/home/bozhi/Desktop/wall-x/client_results",
+        help="Save directory for results",
     )
     args = parser.parse_args()
 
-    # Synchronous mode
+    # Synchronous mode (推荐用这个)
     main_sync(args)
 
-    # Asynchronous mode
+    # Asynchronous mode (可选)
     # asyncio.run(main(args))
