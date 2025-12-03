@@ -6,7 +6,7 @@ This script demonstrates how to connect to a Wall-X server and request
 action predictions from observations in both sync and async contexts.
 """
 import sys
-sys.path.insert(0, "/home/bozhi/Desktop/wall-x")
+sys.path.insert(0, "/mnt/diff-ali/workspace/wall-x")
 
 import asyncio
 import logging
@@ -137,6 +137,7 @@ class WallXClient:
 
     def connect_sync(self):
         """Synchronously connect to server."""
+        print("3")
         return self._run_async(self.connect())
 
     def norm_state(
@@ -299,7 +300,9 @@ def main_sync(args):
 async def main(args):
     """Asynchronous version of main function."""
     client = WallXClient(args.config_path, uri=args.uri)
+    print("1")
     await client.connect()
+    print("2")
     dataset, repo_id = init_serving_sample_dataset(client.train_config)
 
     total_frames = len(dataset)
@@ -371,12 +374,12 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--config_path",
-        default="/home/bozhi/Desktop/wall-x/workspace/lerobot_example/UAV_test/wall-oss_fast-noMOE/config_qact.yml",
+        default="/mnt/diff-ali/workspace/wall-x/workspace/lerobot_example/UAV_test/wall-oss_fast-withMOE/config_qact.yml",
         help="Train config path",
     )
     parser.add_argument(
         "--save_dir",
-        default="/home/bozhi/Desktop/wall-x/client_results",
+        default="/mnt/diff-ali/workspace/wall-x/client_results",
         help="Save directory for results",
     )
     args = parser.parse_args()

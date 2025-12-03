@@ -8,7 +8,7 @@ model_type: wall-oss
 pretrained_wallx_path: "/inspire/hdd/global_user/konghanlin-253108540238/VLA_pt/wall-oss-fast-noMOE"  # Must set
 save_path: "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/wall_pt/wall-oss-fast-noMOE_train"                # Must set
 use_fast_tokenizer: True                       # True: train FAST, False: train Flow
-action_tokenizer_path: "/inspire/hdd/global_user/konghanlin-253108540238/fast_tokenizer"         # Must set if use_fast_tokenizer is true
+action_tokenizer_path: "/mnt/diff-ali/workspace/wall-x/fast-tokenizer"         # Must set if use_fast_tokenizer is true
 
 # Torch Profile
 profile: False
@@ -37,7 +37,7 @@ torch_compile: False
 #   ckpt: "/path/to/resume_model/"
 #   load_ckpt_only: true
 
-norm_stats_path: "/inspire/hdd/global_user/konghanlin-253108540238/user_cache/lerobot/dzb/our_data_train/norm_stats.json"
+norm_stats_path: "/mnt/diff-ali/datasets/dzb/lerobot/our_data_test/norm_stats.json"
 
 enable_customized_robot_config: true
 customized_robot_config:

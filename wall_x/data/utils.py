@@ -225,6 +225,8 @@ def preprocesser_call(
             text[i] = text[i].replace("<|placeholder|>", "<|video_pad|>")
 
     # Tokenize complete input text
+    print("len(text):",len(text))
+    print("text:", text)
     text_inputs = processor.tokenizer(
         text,
         return_tensors=return_tensors,
@@ -232,7 +234,7 @@ def preprocesser_call(
         truncation=truncation,
         max_length=max_length,
     )
-
+    print("text_inputs:", text_inputs)
     # Get pad token ID for label generation
     pad_token_id = processor.tokenizer.pad_token_id
     if pad_token_id is None:

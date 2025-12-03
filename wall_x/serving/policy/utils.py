@@ -95,7 +95,7 @@ def prepare_batch(
     formatted_text = format_text_with_vision_tokens(
         instruction, camera_key, predict_mode, pred_horizon
     )
-
+    print("formatted_text:", formatted_text)
     # Use processor to prepare inputs
     inputs = preprocesser_call(
         processor=processor,
@@ -255,12 +255,12 @@ def format_text_with_vision_tokens(
     user_request += "\nInstruction:"
 
     text_prompt = (
-        f"\nPredict the next action in robot action.\nProprioception: {propri_symbol}\n"
+        f"\nProprioception: {propri_symbol}\n"
     )
     user_message = f"{user_request} {instruction}{text_prompt}{role_end_symbol}\n"
     assistant_output = f"{role_start_symbol}assistant\n"
     if predict_mode == "diffusion":
         assistant_output += f"{action_symbol * pred_horizon}"
     complete_text = prologue + user_message + assistant_output
-
+    
     return complete_text

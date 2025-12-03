@@ -157,15 +157,20 @@ class WallXPolicy(BasePolicy):
                     [1, self.pred_horizon, self.action_dim]
                 ).astype(np.float32)
 
-            predicted_actions = (
-                outputs["predict_action"][:, :, : self.action_dim]
-                .detach()
-                .cpu()
-                .to(torch.float32)
-                .numpy()
-            )
+            try:
+                predicted_actions = (
+                    outputs["predict_action"][:, :, : self.action_dim]
+                    .detach()
+                    .cpu()
+                    .to(torch.float32)
+                    .numpy()
+                )
+                print(predicted_actions.shape)
 
-            print(predicted_actions.shape)
+            except:
+                predicted_actions = None
+                print("predicted_actions是None")
+
             return {"action": predicted_actions}
 
         except Exception as e:

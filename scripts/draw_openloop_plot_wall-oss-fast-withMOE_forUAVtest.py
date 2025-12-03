@@ -1,6 +1,6 @@
 import os
 import sys
-sys.path.insert(0, "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx")
+sys.path.insert(0, "/mnt/diff-ali/workspace/wall-x")
 
 import yaml
 import torch
@@ -29,10 +29,10 @@ if __name__ == "__main__":
     origin_action_dim = args.origin_action_dim
     pred_horizon = args.pred_horizon
 
-    model_path = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/wallx_pt/wall-oss-fast-MOE-tiny/2/processor"
-    action_tokenizer_path = "/inspire/hdd/global_user/konghanlin-253108540238/fast_tokenizer"
-    save_dir = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/open_loop_figs/draw_openloop_plot_wall-oss-fast-MOE_forUAVtiny"
-    path = "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/workspace/lerobot_example/UAV_tiny/wall-oss_fast-withMOE/config_qact.yml"
+    model_path = "/mnt/diff-ali/workspace/wall-x/wallx_pt/walloss-fast-moe-for-sim/processor"
+    action_tokenizer_path = "/mnt/diff-ali/workspace/wall-x/fast-tokenizer"
+    save_dir = "/mnt/diff-ali/workspace/wall-x/open_loop_figs"
+    path = "/mnt/diff-ali/workspace/wall-x/workspace/lerobot_example/UAV_test/wall-oss_fast-withMOE/config_qact.yml"
     config = load_config(path)
 
     # load model with customized robot config
@@ -44,7 +44,7 @@ if __name__ == "__main__":
     # get test dataloader
     dataload_config = get_data_configs(config["data"])
     lerobot_config = dataload_config.get("lerobot_config", {})
-    dataset = load_test_dataset(config, lerobot_config, episode = list(range(2)),seed=42)
+    dataset = load_test_dataset(config, lerobot_config, episode = list(range(50)),seed=42)
     dataloader = dataset.get_dataloader()
 
     total_frames = len(dataloader)
@@ -56,7 +56,7 @@ if __name__ == "__main__":
 
     step = 0#表示循环中，现在处在第episode_index个episode中的第step步
     pic = 0
-    
+    begin_plot = 0#从第几步开始绘制
     CONST_ZERO_TENSOR = torch.tensor([0., 0., 0., 0., 0., 0., 0., 0., 0., 0.,
                                 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.])
     
@@ -76,12 +76,12 @@ if __name__ == "__main__":
                 plt.title("XY Trajectory Comparison (lerobot)")
 
                 # Ground truth trajectory
-                plt.plot(gt_traj_np[5:step, 0], gt_traj_np[5:step, 1], '-o', label='Ground Truth', alpha=0.7)
+                plt.plot(gt_traj_np[begin_plot:step, 0], gt_traj_np[begin_plot:step, 1], '-o', label='Ground Truth', alpha=0.7)
                 # Predicted trajectory
-                plt.plot(pred_traj_np[5:step, 0], pred_traj_np[5:step, 1], '-o', label='Prediction', alpha=0.7)
+                plt.plot(pred_traj_np[begin_plot:step, 0], pred_traj_np[begin_plot:step, 1], '-o', label='Prediction', alpha=0.7)
 
                 # 标出编号（step index）
-                for i in range(5, step):
+                for i in range(begin_plot, step):
                     plt.text(gt_traj_np[i, 0], gt_traj_np[i, 1], str(i), fontsize=8, color='blue')
                     plt.text(pred_traj_np[i, 0], pred_traj_np[i, 1], str(i), fontsize=8, color='orange')
 
@@ -114,12 +114,15 @@ if __name__ == "__main__":
                     mode="predict",
                     predict_mode=predict_mode,
                 )
-                pred_traj[step : step + pred_horizon] = (
-                    outputs["predict_action"][:, :, :origin_action_dim]
-                    .detach()
-                    .cpu()
-                    .squeeze(0)
-                )
+                try: 
+                    pred_traj[step : step + pred_horizon] = (
+                        outputs["predict_action"][:, :, :origin_action_dim]
+                        .detach()
+                        .cpu()
+                        .squeeze(0)
+                    )
+                except :
+                    continue
                 
                 
                 

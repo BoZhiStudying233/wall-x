@@ -277,4 +277,6 @@ user_cache/
 .github/
 core.*
 fast-tokenizer/
+datasets/datasets/
 datasets/
+ori_model/

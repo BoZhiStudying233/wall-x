@@ -12,7 +12,7 @@ python -m wall_x.serving.launch_serving   --port 8000   --host 0.0.0.0   model-c
 """
 
 import sys
-sys.path.insert(0, "/home/bozhi/Desktop/wall-x")
+sys.path.insert(0, "/mnt/diff-ali/workspace/wall-x")
 import dataclasses
 from dataclasses import field
 import enum

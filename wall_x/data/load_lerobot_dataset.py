@@ -91,7 +91,7 @@ class PreprocessedDataset(Dataset[T_co]):
             from PIL import Image
 
             current_obs = frames[key].clone().permute(1, 2, 0)
-            print("current_obs shape:", current_obs.shape)
+            # print("current_obs shape:", current_obs.shape)
             img_pil = Image.fromarray((current_obs * 255).to(torch.uint8).cpu().numpy())
             orig_width, orig_height = img_pil.size
             print(f"Original image size for {key}: ({orig_width}, {orig_height})")
@@ -150,6 +150,7 @@ class PreprocessedDataset(Dataset[T_co]):
             bbox = data["bbox"],
             grasp=data["grasp"],
         )
+        print("complete_text:",complete_text)
         text = process_grounding_points(
             complete_text, h, w, resize_h, resize_w, self.data_config.model_type
         )
