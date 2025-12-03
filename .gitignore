@@ -280,3 +280,6 @@ fast-tokenizer/
 datasets/datasets/
 datasets/
 ori_model/
+datasets/
+client_results/
+simlulate/

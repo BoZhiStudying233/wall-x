@@ -7,3 +7,6 @@ peft==0.17.1
 scipy==1.15.3
 torchdiffeq==0.2.5
 qwen_vl_utils==0.0.11
+matplotlib
+msgpack-numpy
+websockets
