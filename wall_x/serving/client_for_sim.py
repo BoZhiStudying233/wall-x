@@ -48,9 +48,15 @@ from geometry_msgs.msg import PoseStamped
 import cv2
 from cv_bridge import CvBridge
 import threading
+from quadrotor_msgs.msg import PositionCommand, GoalSet
+import subprocess
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+
+
 
 
 class WallXClient:
@@ -118,6 +124,7 @@ class WallXClient:
                                          PoseStamped, 
                                          queue_size=1)
 
+        self.initial_state = None
         # 初始化WebSocket客户端
         self.client = None
         self.prompt = None
@@ -130,7 +137,7 @@ class WallXClient:
         self.host = rospy.get_param('~host', '127.0.0.1')  # 修改默认host
         self.port = rospy.get_param('~port', 8000)
         self.replan_steps = rospy.get_param('~replan_steps', 10)
-        self.prompt = rospy.get_param('~prompt', 'Pick up the vase on the table in front and put it on the cabinet at the end of the corridor at the back.')
+        self.prompt = rospy.get_param('~prompt', 'Pick up the cup on the bookshelf and put it on the table at the back left. Catch: cup. Put: table.')
 
         if self.prompt is None:
             self.prompt = "无人机实时轨迹控制"  # 默认提示
@@ -266,6 +273,7 @@ class WallXClient:
     def odom_callback(self, msg):
         """处理无人机状态回调"""
         # print("odom_callback")  # 先确保终端能看到这行
+
         with self.state_lock:
             # PoseStamped: 直接 msg.pose
             position = msg.pose.position
@@ -282,6 +290,13 @@ class WallXClient:
                 position.x, position.y, position.z,
                 roll, pitch, yaw
             ])
+            if self.initial_state is None:
+                self.initial_state = np.array([
+                    msg.pose.position.x, msg.pose.position.y, msg.pose.position.z,
+                    roll, pitch, yaw
+                ])
+                print("initial_state:", self.initial_state)
+            self.current_state = self.current_state - self.initial_state
 
     
     def image_callback(self, msg):
@@ -354,31 +369,49 @@ class WallXClient:
     
     def publish_action(self, action):
         """发布动作到ROS话题"""
-        print("action_pub:", action)
+
+        # print("action_pub:", action)
         if len(action) < 5:
-            logging.error("动作数据不足6个元素")
+            logging.error("动作步数不足5")
             return
         
         pose_msg = PoseStamped()
         pose_msg.header.stamp = rospy.Time.now()
         pose_msg.header.frame_id = "map"
-        print("pose_msg:", pose_msg)
+        # print("pose_msg:", pose_msg)
 
+        step = 3
         # 设置位置
-        pose_msg.pose.position.x = action[0][0]
-        pose_msg.pose.position.y = action[0][1]
-        pose_msg.pose.position.z = action[0][2]
+        self.last_state = action[step]
+        pose_msg.pose.position.x = action[step][0]+self.initial_state[0]
+        pose_msg.pose.position.y = action[step][1]+self.initial_state[1]
+        pose_msg.pose.position.z = action[step][2]+self.initial_state[2]
 
-        print("pose_msg:", pose_msg)
+        # print("pose_msg:", pose_msg)
 
         # 将欧拉角转换为四元数
-        qx, qy, qz, qw = self.euler_to_quaternion(action[0][3], action[0][4], action[0][5])
+        qx, qy, qz, qw = self.euler_to_quaternion(action[step][3]+self.initial_state[3], action[step][4]+self.initial_state[4], action[step][5]+self.initial_state[5])
         pose_msg.pose.orientation.x = qx
         pose_msg.pose.orientation.y = qy
         pose_msg.pose.orientation.z = qz
         pose_msg.pose.orientation.w = qw
-        print("pose_msg:", pose_msg)
+
         self.action_pub.publish(pose_msg)
+
+        rospy.sleep(5.0)
+
+        yaw = action[step][5] + self.initial_state[5]
+
+        subprocess.call(["/home/bozhi/Desktop/DataCollect/pub_yaw.sh", str(yaw)])
+
+        # self.rotate_yaw_smoothly(
+        #     x=pose_msg.pose.position.x,
+        #     y=pose_msg.pose.position.y,
+        #     z=pose_msg.pose.position.z,
+        #     target_yaw=yaw,
+        #     max_step_angle=0.3,   # 和原 shell 脚本一样
+        #     publish_frequency=10.0
+        # )
     
     def euler_to_quaternion(self, roll, pitch, yaw):
         """将欧拉角转换为四元数"""
@@ -441,9 +474,9 @@ class WallXClient:
             should_infer = False
             
             # 条件1：位置移动距离小于阈值（原逻辑，表示已到达目标点附近）
-            if distance < 0.001:
+            if distance < 0.01:
                 should_infer = True
-                inference_reason = f"位置距离满足条件: {distance:.4f} < 0.001"
+                inference_reason = f"位置距离满足条件: {distance:.4f} < 0.01"
             
             # 条件2：时间超时（新增逻辑）
             elif self.last_inference_time is not None:
@@ -465,7 +498,6 @@ class WallXClient:
                     
                     # 保存输入到模型的图像
                     timestamp = rospy.Time.now()
-                    print("1")
                     # 保存固定主图像 (256x256)
                     main_image_filename = f"inference_main_{self.save_count:04d}_{timestamp.secs}.jpg"
                     main_image_path = os.path.join(self.model_input_dir, main_image_filename)
@@ -475,11 +507,9 @@ class WallXClient:
                     current_image_filename = f"inference_current_{self.save_count:04d}_{timestamp.secs}.jpg"
                     current_image_path = os.path.join(self.model_input_dir, current_image_filename)
                     cv2.imwrite(current_image_path, current_image)
-                    print("2")
                     # 保存状态信息到文本文件
                     state_filename = f"inference_state_{self.save_count:04d}_{timestamp.secs}.txt"
                     state_path = os.path.join(self.model_input_dir, state_filename)
-                    print("3")
                     with open(state_path, 'w') as f:
                         f.write(f"推理步骤: {self.save_count}\n")
                         f.write(f"时间戳: {timestamp.secs}.{timestamp.nsecs}\n")
@@ -490,9 +520,7 @@ class WallXClient:
                         f.write(f"主图像文件: {main_image_filename}\n")
                         f.write(f"手腕图像文件: {current_image_filename}\n")
                         f.write(f"图像尺寸: {image.shape}\n")
-                    # print("4")
                     logging.info(f"模型输入图像已保存: {main_image_filename}, {current_image_filename}")
-                    # print("5")
 
                     # state: (6,) -> (1, 6) tensor
                     state_tensor = torch.from_numpy(state).float()      # [6]
@@ -517,7 +545,6 @@ class WallXClient:
                     }
 
                     repo_id = "dzb/our_data_test"
-                    print("7")
 
                     obs = prepare_batch_sync(
                         data,
@@ -525,7 +552,6 @@ class WallXClient:
                         self.normalizer_propri,
                         dataset_names=[repo_id],
                     )
-                    print("6")
 
 
                     # pred_action shape: [pred_horizon, action_dim]
@@ -558,7 +584,7 @@ class WallXClient:
                     # 调用服务器进行推理
                     response = self.predict_sync(obs)
                     action_chunk = response["action"]
-                    print("action_chunk:", action_chunk)
+                    # print("action_chunk:", action_chunk)
                     # result = self.client.infer(element)
                     # action_chunk = result["actions"]
                     
@@ -569,23 +595,22 @@ class WallXClient:
                     state_path = os.path.join(self.model_input_dir, state_filename)
                     with open(state_path, 'w') as f:
                         f.write(f"action: {action_chunk}\n")
-                    
+                    # print("action_chunk:", action_chunk)
                     # 发布第一个动作
-                    for i in range(5):
-                        self.publish_action(action_chunk[i])
+                    # for i in range(5):
+                    #     self.publish_action(action_chunk[i])
                         
-                        self.inferred_trajectory.append(action_chunk[i])
-                        if len(self.original_trajectory) == 0:
-                            self.original_trajectory.append(state)
-                        else:
-                            self.original_trajectory.append(action_chunk[i])
+                    #     self.inferred_trajectory.append(action_chunk[i])
+                    #     if len(self.original_trajectory) == 0:
+                    #         self.original_trajectory.append(state)
+                    #     else:
+                    #         self.original_trajectory.append(action_chunk[i])
 
-                        rate.sleep()
-                    self.last_state = action_chunk[9]
-                        
+                    #     rate.sleep()
+                    print("action_chunk.shape:", action_chunk.shape)
                     if len(action_chunk) > 0:
                         self.publish_action(action_chunk[0])
-                        
+
                         # 存储轨迹用于可视化
                         # self.inferred_trajectory.append(action_chunk[0])
                         # if len(self.original_trajectory) == 0:
@@ -597,7 +622,6 @@ class WallXClient:
                     
                 except Exception as e:
                     logging.error(f"推理错误: {e}")
-            # print("哈哈")
             rate.sleep()
     
     def visualize_trajectories(self):
@@ -693,20 +717,22 @@ class WallXClient:
 
 def prepare_batch_sync(data, normalizer_action, normalizer_propri, dataset_names):
     """Synchronous version of prepare_batch."""
-    print("data_keys:", data.keys())
-    print("image1 shape:", data["video.front"].shape)
+    # print("data_keys:", data.keys())
+    # print("image1 shape:", data["video.front"].shape)
     image1 = (data["video.front"].permute(1, 2, 0) * 255).to(torch.uint8).cpu().numpy()
-    print("10")
+    # print("10")
     image2 = (
         (data["video.front_first"].permute(1, 2, 0) * 255).to(torch.uint8).cpu().numpy()
     )
-    print("9")
+    # print("9")
     # 添加调试信息
-    print(f"[DEBUG] image1 shape: {image1.shape}, dtype: {image1.dtype}")
-    print(f"[DEBUG] image2 shape: {image2.shape}, dtype: {image2.dtype}")
+    # print(f"[DEBUG] image1 shape: {image1.shape}, dtype: {image1.dtype}")
+    # print(f"[DEBUG] image2 shape: {image2.shape}, dtype: {image2.dtype}")
     prompt = data["task"]
 
     state = data["state"].to("cuda")
+    
+    # print("prompt:", prompt,"  state:", state)
     if state.dim() == 1:
         state = state.unsqueeze(0)
 
@@ -715,7 +741,7 @@ def prepare_batch_sync(data, normalizer_action, normalizer_propri, dataset_names
 
     state = normalizer_propri.normalize_data(state, dataset_names, state_mask)
     state = state.cpu().numpy().astype(np.float32)
-    print("8")
+    # print("8")
     obs = {
         "face_view": image1,  # 改为与 server camera_key 匹配
         "first_face_view": image2,

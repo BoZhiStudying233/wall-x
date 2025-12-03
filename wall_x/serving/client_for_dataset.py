@@ -8,7 +8,7 @@ action predictions from observations in both sync and async contexts.
 import sys
 sys.path.insert(0, "/home/bozhi/Desktop/wall-x")
 
-
+import re
 import asyncio
 import logging
 from typing import Dict, List
@@ -40,6 +40,14 @@ try:
 except ImportError:
     print("Please install websockets: pip install websockets")
     exit(1)
+
+
+from wall_x.data.utils import (
+    process_grounding_points,
+    get_wallx_normal_text,
+    replace_action_token,
+    preprocesser_call,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -186,6 +194,41 @@ class WallXClient:
 
         print("Normalizer initialized")
 
+def parse_task(task_str):
+    # 匹配英文格式：Catch: xxx. Put: yyy
+    match = re.search(r"(.*)Catch:\s*(.*)\.\s*Put:\s*(.*)", task_str)
+    if match:
+        instruction = match.group(1).strip()
+        catch_target = match.group(2).strip()
+        put_target = match.group(3).strip()
+        return instruction, catch_target, put_target
+    else:
+        # 格式不匹配时返回空字符串
+        return "", "", ""
+def deal_instruction(instruction: str) -> str:
+    """Deal with the instruction.
+
+    Args:
+        instruction: The instruction string.
+
+    Returns:
+        The processed instruction string.
+    """
+    grasp = False
+    grasp_state = (
+        "now you have already grasped the object"
+        if grasp
+        else "now you have not grasped the object yet")
+    if not grasp:
+        task, catch_target, put_target = parse_task(instruction)
+        target = catch_target
+        instruction_info = {"instruction": task}
+        text_prompt = f"\nYou are performing a robotic manipulation task, {grasp_state}. If you believe the robot can now **grasp or place** the object, identify the {target} in the **front view** and output its bounding box in the format **[x1, y1, x2, y2]**. If you believe the robot still needs to **move closer to the target**, then **predict the robot's next actions**. \n"
+
+    
+    return text_prompt
+
+
 
 def prepare_batch_sync(data, normalizer_action, normalizer_propri, dataset_names):
     """Synchronous version of prepare_batch."""
@@ -200,9 +243,10 @@ def prepare_batch_sync(data, normalizer_action, normalizer_propri, dataset_names
     # 添加调试信息
     # print(f"[DEBUG] image1 shape: {image1.shape}, dtype: {image1.dtype}")
     # print(f"[DEBUG] image2 shape: {image2.shape}, dtype: {image2.dtype}")
+    # prompt = deal_instruction(data["task"])
     prompt = data["task"]
-
     state = data["state"].to("cuda")
+    print("prompt:", prompt,"  state:", state)
     if state.dim() == 1:
         state = state.unsqueeze(0)
 
@@ -265,7 +309,7 @@ def main_sync(args):
 
     # Synchronous processing
     for idx, data in enumerate(dataset):
-        print("data[\"action\"]:", data["action"][0], "data[\"task\"]:", data["task"],"  idx:",idx)
+        # print("data[\"action\"]:", data["action"][0], "data[\"task\"]:", data["task"],"  idx:",idx)
         if (torch.equal(data['action'][0], data['action'][1]) and step!=0) or (idx == total_frames-1):
             # 只可视化前两个维度的 XY 轨迹并显示关键点编号
             timesteps = gt_traj.shape[0]
@@ -352,7 +396,7 @@ def main_sync(args):
         if step % pred_horizon == 0 and step + pred_horizon < total_frames and step >=0:
             if step == 0 and abs(data['action'][0][0])+abs(data['action'][0][1])>0.05:
                 continue
-            print("推理")
+            # print("推理")
             obs = prepare_batch_sync(
                 data,
                 client.normalizer_action,
@@ -362,7 +406,7 @@ def main_sync(args):
             response = client.predict_sync(obs)
             pred_action = response["action"]
             if pred_action is None:
-                print("pred_action:",pred_action)
+                # print("pred_action:",pred_action)
                 continue
             pred_traj[step : step + args.pred_horizon] = pred_action
             gt_traj[step : step + args.pred_horizon] = data["action"]
@@ -424,7 +468,7 @@ async def main(args):
             )
             response = await client.predict(obs)
             pred_action = response["action"]
-            print(pred_action.shape)
+            # print(pred_action.shape)
             pred_traj[idx : idx + args.pred_horizon] = pred_action
             gt_traj[idx : idx + args.pred_horizon] = data["action"]
         step +=1
