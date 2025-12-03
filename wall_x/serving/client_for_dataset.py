@@ -321,7 +321,7 @@ def main_sync(args):
             fig = plt.figure(figsize=(10, 10))
             plt.title("XY Trajectory Comparison for lerobot", fontsize=16)
 
-            save_dir = r"/home/bozhi/Desktop/wall-x/client_results"
+            save_dir = r"client_results"
             pic += 1
             os.makedirs(save_dir, exist_ok=True)
             save_path = os.path.join(save_dir, f"lerobot_xy_trajectory_points_{pic}.png")
@@ -500,12 +500,12 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--config_path",
-        default="/home/bozhi/Desktop/wall-x/workspace/lerobot_example/UAV_test/wall-oss_fast-withMOE/config_qact.yml",
+        default="workspace/lerobot_example/UAV_test/wall-oss_fast-withMOE/config_qact.yml",
         help="Train config path",
     )
     parser.add_argument(
         "--save_dir",
-        default="/home/bozhi/Desktop/wall-x/client_results",
+        default="client_results",
         help="Save directory for results",
     )
     args = parser.parse_args()

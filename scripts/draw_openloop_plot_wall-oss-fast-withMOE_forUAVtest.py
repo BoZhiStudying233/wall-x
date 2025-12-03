@@ -105,6 +105,8 @@ if __name__ == "__main__":
                 step = 0
                 continue
         if step % pred_horizon == 0 and step + pred_horizon < total_frames and step >=0:
+            if step == 0 and abs(batch.data['action_chunk'][0][0][0])+abs(batch.data['action_chunk'][0][0][1])>0.05:
+                continue
             batch = batch.to("cuda")
             with torch.no_grad():
                 outputs = model(

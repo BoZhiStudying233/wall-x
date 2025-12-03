@@ -60,9 +60,9 @@ python -m wall_x.serving.launch_serving \
   --port 8000 \
   --host 0.0.0.0 \
   model-config:model-config \
-    --model-config.model-path "/home/bozhi/Desktop/wall-x/models/wall-oss-fast-noMOE-forSim/processor" \
-    --model-config.action-tokenizer-path "/home/bozhi/Desktop/wall-x/fast-tokenizer" \
-    --model-config.train-config-path "/home/bozhi/Desktop/wall-x/workspace/lerobot_example/UAV_test/wall-oss_fast-noMOE/config_qact.yml" \
+    --model-config.model-path "wallx_pt/walloss-fast-moe-for-sim/processor" \
+    --model-config.action-tokenizer-path "fast-tokenizer" \
+    --model-config.train-config-path "workspace/lerobot_example/UAV_test/wall-oss_fast-noMOE/config_qact.yml" \
     --model-config.action-dim 6 \
     --model-config.state-dim 6 \
     --model-config.camera-key face_view first_face_view \
@@ -75,9 +75,9 @@ python -m wall_x.serving.launch_serving \
   --port 8000 \
   --host 0.0.0.0 \
   model-config:model-config \
-    --model-config.model-path "/mnt/diff-ali/workspace/wall-x/wallx_pt/walloss-fast-moe-for-sim/processor" \
-    --model-config.action-tokenizer-path "/mnt/diff-ali/workspace/wall-x/fast-tokenizer" \
-    --model-config.train-config-path "/mnt/diff-ali/workspace/wall-x/workspace/lerobot_example/UAV_test/wall-oss_fast-withMOE/config_qact.yml" \
+    --model-config.model-path "wallx_pt/walloss-fast-moe-for-sim/processor" \
+    --model-config.action-tokenizer-path "fast-tokenizer" \
+    --model-config.train-config-path "workspace/lerobot_example/UAV_test/wall-oss_fast-withMOE/config_qact.yml" \
     --model-config.action-dim 6 \
     --model-config.state-dim 6 \
     --model-config.camera-key face_view first_face_view \

@@ -5,10 +5,10 @@
 log_name: "robotic_training"
 log_project: "vla_training"
 model_type: wall-oss
-pretrained_wallx_path: "/home/bozhi/Desktop/wall-x/models/walloss-fast-onSim/processor"  # Must set
+pretrained_wallx_path: "models/walloss-fast-onSim/processor"  # Must set
 save_path: "/inspire/hdd/global_user/konghanlin-253108540238/new_wallx/wall_pt/wall-oss-fast-withMOE"                # Must set
 use_fast_tokenizer: True                       # True: train FAST, False: train Flow
-action_tokenizer_path: "/home/bozhi/Desktop/wall-x/fast-tokenizer"         # Must set if use_fast_tokenizer is true
+action_tokenizer_path: "fast-tokenizer"         # Must set if use_fast_tokenizer is true
 
 # Torch Profile
 profile: False
@@ -37,7 +37,7 @@ torch_compile: False
 #   ckpt: "/path/to/resume_model/"
 #   load_ckpt_only: true
 
-norm_stats_path: "/home/bozhi/Desktop/wall-x/datasets/lerobot/dzb/our_data_test/norm_stats.json"
+norm_stats_path: "datasets/dzb/our_data_test/norm_stats.json"
 
 enable_customized_robot_config: true
 customized_robot_config:

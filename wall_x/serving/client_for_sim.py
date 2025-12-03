@@ -101,11 +101,11 @@ class WallXClient:
         self.inference_timeout = 10.0  # 设置推理超时时间（秒），可以根据需要调整
         
         # 创建图像保存目录
-        self.image_save_dir = '/home/bozhi/Desktop/wall-x/simlulate/saved_images'
+        self.image_save_dir = 'simlulate/saved_images'
         os.makedirs(self.image_save_dir, exist_ok=True)
         
         # 创建模型输入图像保存目录
-        self.model_input_dir = '/home/bozhi/Desktop/wall-x/simlulate/model_input_images'
+        self.model_input_dir = 'simlulate/model_input_images'
         os.makedirs(self.model_input_dir, exist_ok=True)
         
         # 订阅无人机状态和图像话题
